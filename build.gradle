@@ -1,0 +1,12 @@
+apply plugin: 'java-library'
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    api 'io.reactivex:rxjava:1.3.0'
+
+    testImplementation 'junit:junit:4.12'
+}
+
