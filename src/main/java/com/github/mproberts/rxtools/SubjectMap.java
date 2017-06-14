@@ -22,24 +22,32 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * when the weak references are automatically cleared. Subjects will be retained strongly
  * so long as a subscriber is subscribed and are weakly retained outside of that lifecycle.
  *
- * @param <TKey> key type for the collection
- * @param <TValue> value type for the emissions from the observables of the collection
+ * @param <K> key type for the collection
+ * @param <V> value type for the emissions from the observables of the collection
  */
-public class SubjectMap<TKey, TValue>
+public class SubjectMap<K, V>
 {
-    private class OnSubscribeAttach implements Observable.OnSubscribe<TValue>
+    private final Lock _writeLock;
+    private final Lock _readLock;
+
+    private final HashMap<K, WeakReference<Observable<V>>> _weakCache;
+    private final HashMap<K, Observable<V>> _cache;
+
+    private final HashMap<K, Subject<V, V>> _sources;
+
+    private class OnSubscribeAttach implements Observable.OnSubscribe<V>
     {
         private final AtomicBoolean _isFirstFault = new AtomicBoolean(true);
-        private final TKey _key;
-        private volatile Observable<TValue> _valueObservable;
+        private final K _key;
+        private volatile Observable<V> _valueObservable;
 
-        OnSubscribeAttach(TKey key)
+        OnSubscribeAttach(K key)
         {
             _key = key;
         }
 
         @Override
-        public void call(final Subscriber<? super TValue> subscriber)
+        public void call(final Subscriber<? super V> subscriber)
         {
             boolean isFirst = _isFirstFault.getAndSet(false);
 
@@ -63,14 +71,6 @@ public class SubjectMap<TKey, TValue>
         }
     }
 
-    private final Lock _writeLock;
-    private final Lock _readLock;
-
-    private HashMap<TKey, WeakReference<Observable<TValue>>> _weakCache;
-    private HashMap<TKey, Observable<TValue>> _cache;
-
-    private HashMap<TKey, Subject<TValue, TValue>> _sources;
-
     /**
      * Constructs a new, empty SubjectMap
      */
@@ -87,20 +87,20 @@ public class SubjectMap<TKey, TValue>
         _sources = new HashMap<>();
     }
 
-    private BehaviorSubject<TKey> _faults = BehaviorSubject.create();
+    private BehaviorSubject<K> _faults = BehaviorSubject.create();
 
-    private Observable<TValue> attachSource(TKey key)
+    private Observable<V> attachSource(K key)
     {
         _writeLock.lock();
         try {
-            BehaviorSubject<TValue> value = BehaviorSubject.create();
-            WeakReference<Observable<TValue>> weakConnector = _weakCache.get(key);
+            BehaviorSubject<V> value = BehaviorSubject.create();
+            WeakReference<Observable<V>> weakConnector = _weakCache.get(key);
 
             // if an observable is being attached then it must have been added to the weak cache
             // and it must still be referenced
             assert(weakConnector != null);
 
-            Observable<TValue> connector = weakConnector.get();
+            Observable<V> connector = weakConnector.get();
 
             // the observable must be retained by someone since it is being attached
             assert(connector != null);
@@ -117,7 +117,7 @@ public class SubjectMap<TKey, TValue>
         }
     }
 
-    private void detachSource(TKey key)
+    private void detachSource(K key)
     {
         _writeLock.lock();
         try {
@@ -130,9 +130,9 @@ public class SubjectMap<TKey, TValue>
         }
     }
 
-    private void emitUpdate(TKey key, Action1<Subject<TValue, TValue>> updater)
+    private void emitUpdate(K key, Action1<Subject<V, V>> updater)
     {
-        Subject<TValue, TValue> subject = null;
+        Subject<V, V> subject = null;
 
         _readLock.lock();
 
@@ -151,7 +151,7 @@ public class SubjectMap<TKey, TValue>
         }
     }
 
-    private void emitFault(TKey key)
+    private void emitFault(K key)
     {
         _faults.onNext(key);
     }
@@ -162,7 +162,7 @@ public class SubjectMap<TKey, TValue>
      *
      * @return an observable stream of keys
      */
-    public Observable<TKey> faults()
+    public Observable<K> faults()
     {
         return _faults;
     }
@@ -176,7 +176,7 @@ public class SubjectMap<TKey, TValue>
      * @param key key with which the specified value is to be associated
      * @param value value to be send to the specified observable
      */
-    public void onNext(TKey key, TValue value)
+    public void onNext(K key, V value)
     {
         emitUpdate(key, subject -> subject.onNext(value));
     }
@@ -189,7 +189,7 @@ public class SubjectMap<TKey, TValue>
      * @param key key with which the specified value is to be associated
      * @param exception exception to be sent to the specified observable
      */
-    public void onError(TKey key, Exception exception)
+    public void onError(K key, Exception exception)
     {
         emitUpdate(key, subject -> subject.onError(exception));
     }
@@ -203,14 +203,14 @@ public class SubjectMap<TKey, TValue>
      * @return an observable which, when subscribed, will be bound to the specified key
      * and will receive all emissions and errors for the specified key
      */
-    public Observable<TValue> get(TKey key)
+    public Observable<V> get(K key)
     {
-        WeakReference<Observable<TValue>> weakObservable;
+        WeakReference<Observable<V>> weakObservable;
 
         _readLock.lock();
 
         try {
-            Observable<TValue> observable;
+            Observable<V> observable;
 
             // attempt to retrieve the weakly held observable
             if (_weakCache.containsKey(key)) {
