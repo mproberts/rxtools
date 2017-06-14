@@ -10,3 +10,7 @@ dependencies {
     testImplementation 'junit:junit:4.12'
 }
 
+allprojects {
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+}

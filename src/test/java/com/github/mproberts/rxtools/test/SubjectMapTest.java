@@ -1,6 +1,6 @@
-package io.mpr.observable.test;
+package com.github.mproberts.rxtools.test;
 
-import io.mpr.observable.SubjectMap;
+import com.github.mproberts.rxtools.SubjectMap;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;

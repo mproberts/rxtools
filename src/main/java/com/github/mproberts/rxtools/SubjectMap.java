@@ -1,4 +1,4 @@
-package io.mpr.observable;
+package com.github.mproberts.rxtools;
 
 import rx.Observable;
 import rx.Subscriber;
