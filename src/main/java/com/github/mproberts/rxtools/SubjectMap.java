@@ -2,6 +2,7 @@ package com.github.mproberts.rxtools;
 
 import rx.Observable;
 import rx.Subscriber;
+import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.subjects.BehaviorSubject;
 import rx.subjects.Subject;
@@ -67,7 +68,13 @@ public class SubjectMap<K, V>
 
             _valueObservable.subscribe(subscriber);
 
-            subscriber.add(BooleanSubscription.create(() -> detachSource(_key)));
+            subscriber.add(BooleanSubscription.create(new Action0() {
+                @Override
+                public void call()
+                {
+                    detachSource(_key);
+                }
+            }));
         }
     }
 
@@ -176,9 +183,15 @@ public class SubjectMap<K, V>
      * @param key key with which the specified value is to be associated
      * @param value value to be send to the specified observable
      */
-    public void onNext(K key, V value)
+    public void onNext(K key, final V value)
     {
-        emitUpdate(key, subject -> subject.onNext(value));
+        emitUpdate(key, new Action1<Subject<V, V>>() {
+            @Override
+            public void call(Subject<V, V> subject)
+            {
+                subject.onNext(value);
+            }
+        });
     }
 
     /**
@@ -189,9 +202,15 @@ public class SubjectMap<K, V>
      * @param key key with which the specified value is to be associated
      * @param exception exception to be sent to the specified observable
      */
-    public void onError(K key, Exception exception)
+    public void onError(K key, final Exception exception)
     {
-        emitUpdate(key, subject -> subject.onError(exception));
+        emitUpdate(key, new Action1<Subject<V, V>>() {
+            @Override
+            public void call(Subject<V, V> subject)
+            {
+                subject.onError(exception);
+            }
+        });
     }
 
     /**
@@ -240,7 +259,7 @@ public class SubjectMap<K, V>
                 }
 
                 // no observable was found in the cache, create a new binding
-                observable = Observable.unsafeCreate(new OnSubscribeAttach(key));
+                observable = Observable.create(new OnSubscribeAttach(key));
 
                 _weakCache.put(key, new WeakReference<>(observable));
             }

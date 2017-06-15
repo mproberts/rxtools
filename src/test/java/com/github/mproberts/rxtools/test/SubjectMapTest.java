@@ -33,6 +33,24 @@ public class SubjectMapTest
     private CompositeSubscription _subscription;
     private SubjectMap<String, Integer> source;
 
+    private static class IncrementingFaultSatisfier<K> implements Action1<K>
+    {
+        private final AtomicInteger _counter;
+        private final SubjectMap<K, Integer> _source;
+
+        public IncrementingFaultSatisfier(SubjectMap<K, Integer> source, AtomicInteger counter)
+        {
+            _source = source;
+            _counter = counter;
+        }
+
+        @Override
+        public void call(K key)
+        {
+            _source.onNext(key, _counter.incrementAndGet());
+        }
+    }
+
     private <T> void subscribe(Observable<T> observable, Action1<T> action)
     {
         _subscription.add(observable.subscribe(action));
@@ -67,7 +85,7 @@ public class SubjectMapTest
         // setup
         AtomicInteger counter = new AtomicInteger(0);
         Subscription faultSubscription = source.faults()
-                .subscribe((key) -> source.onNext(key, counter.incrementAndGet()));
+                .subscribe(new IncrementingFaultSatisfier<>(source, counter));
 
         TestSubscriber<Integer> testSubscriber1 = new TestSubscriber<>();
         TestSubscriber<Integer> testSubscriber2 = new TestSubscriber<>();
@@ -101,7 +119,7 @@ public class SubjectMapTest
         // setup
         AtomicInteger counter = new AtomicInteger(0);
         Subscription faultSubscription = source.faults()
-                .subscribe((key) -> source.onNext(key, counter.incrementAndGet()));
+                .subscribe(new IncrementingFaultSatisfier<>(source, counter));
 
         TestSubscriber<Integer> testSubscriber1 = new TestSubscriber<>();
         TestSubscriber<Integer> testSubscriber2 = new TestSubscriber<>();
@@ -195,10 +213,21 @@ public class SubjectMapTest
 
         for (int j = 0; j < 10; ++j) {
             final AtomicInteger counter = new AtomicInteger(0);
+            final Observable<Integer> valueObservable = source.get("test");
 
-            Observable<Integer> valueObservable = source.get("test");
-
-            Callable<Subscription> queryCallable = () -> valueObservable.subscribe((value) -> counter.incrementAndGet());
+            Callable<Subscription> queryCallable = new Callable<Subscription>() {
+                @Override
+                public Subscription call() throws Exception
+                {
+                    return valueObservable.subscribe(new Action1<Integer>() {
+                        @Override
+                        public void call(Integer integer)
+                        {
+                            counter.incrementAndGet();
+                        }
+                    });
+                }
+            };
             List<Callable<Subscription>> callables = new ArrayList<>();
 
             for (int i = 0; i < subscriberCount; ++i) {
@@ -232,7 +261,13 @@ public class SubjectMapTest
         for (int j = 0; j < 10; ++j) {
             final AtomicInteger counter = new AtomicInteger(0);
 
-            Callable<Observable<Integer>> queryCallable = () -> source.get("test");
+            Callable<Observable<Integer>> queryCallable = new Callable<Observable<Integer>>() {
+                @Override
+                public Observable<Integer> call() throws Exception
+                {
+                    return source.get("test");
+                }
+            };
             List<Callable<Observable<Integer>>> callables = new ArrayList<>();
 
             for (int i = 0; i < subscriberCount; ++i) {
@@ -244,8 +279,12 @@ public class SubjectMapTest
             for (int i = 0; i < subscriberCount; ++i) {
                 Observable<Integer> observable = futures.get(i).get();
 
-                subscribe(observable, (value) -> {
-                    counter.incrementAndGet();
+                subscribe(observable, new Action1<Integer>() {
+                    @Override
+                    public void call(Integer value)
+                    {
+                        counter.incrementAndGet();
+                    }
                 });
             }
 
@@ -263,7 +302,7 @@ public class SubjectMapTest
         // setup
         AtomicInteger counter = new AtomicInteger(0);
         Subscription faultSubscription = source.faults()
-                .subscribe((key) -> source.onNext(key, counter.incrementAndGet()));
+                .subscribe(new IncrementingFaultSatisfier<>(source, counter));
 
         TestSubscriber<Integer> testSubscriber1 = new TestSubscriber<>();
         TestSubscriber<Integer> testSubscriber2 = new TestSubscriber<>();
