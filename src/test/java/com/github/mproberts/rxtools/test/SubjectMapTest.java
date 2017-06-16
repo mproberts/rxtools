@@ -39,7 +39,7 @@ public class SubjectMapTest
         private final AtomicInteger _counter;
         private final SubjectMap<K, Integer> _source;
 
-        public IncrementingFaultSatisfier(SubjectMap<K, Integer> source, AtomicInteger counter)
+        IncrementingFaultSatisfier(SubjectMap<K, Integer> source, AtomicInteger counter)
         {
             _source = source;
             _counter = counter;
@@ -215,6 +215,73 @@ public class SubjectMapTest
         testSubscriber1.assertValues(1, 10, 11);
         testSubscriber2.assertValues(1, 10, 11);
         testSubscriber3.assertValues(10, 11);
+
+        // cleanup
+        faultSubscription.unsubscribe();
+    }
+
+    @Test
+    public void testExceptionHandlingFault()
+    {
+        // setup
+        final AtomicBoolean exceptionEncountered = new AtomicBoolean(false);
+        final AtomicInteger counter = new AtomicInteger(0);
+        Subscription faultSubscription = source.faults()
+                .subscribe(new Action1<String>() {
+                    @Override
+                    public void call(String key) {
+                        if (counter.incrementAndGet() <= 1) {
+                            throw new RuntimeException("Explosions!");
+                        }
+
+                        source.onNext(key, counter.get());
+                    }
+                }, new Action1<Throwable>() {
+                    @Override
+                    public void call(Throwable throwable) {
+                        assertTrue(throwable instanceof RuntimeException);
+
+                        exceptionEncountered.set(true);
+                    }
+                });
+
+        TestSubscriber<Integer> testSubscriber1 = new TestSubscriber<>();
+        Observable<Integer> helloValue = source.get("hello");
+
+        subscribe(helloValue, testSubscriber1);
+
+        testSubscriber1.assertNoValues();
+
+        assertTrue(exceptionEncountered.get());
+
+        // cleanup
+        faultSubscription.unsubscribe();
+    }
+
+    @Test
+    public void testPruningUnsubscribedObservables()
+    {
+        // setup
+        AtomicInteger counter = new AtomicInteger(0);
+        Subscription faultSubscription = source.faults()
+                .subscribe(new IncrementingFaultSatisfier<>(source, counter));
+
+        TestSubscriber<Integer> testSubscriber = new TestSubscriber<>();
+
+        @SuppressWarnings("unused")
+        Observable<Integer> helloValue = source.get("hello");
+
+        helloValue = null;
+
+        System.gc();
+
+        subscribe(source.get("hello"), testSubscriber);
+
+        testSubscriber.assertValues(1);
+
+        source.onNext("hello", 11);
+
+        testSubscriber.assertValues(1, 11);
 
         // cleanup
         faultSubscription.unsubscribe();
