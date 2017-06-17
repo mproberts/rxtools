@@ -7,6 +7,7 @@ import org.junit.Test;
 import rx.Observable;
 import rx.Subscriber;
 import rx.Subscription;
+import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.observers.TestSubscriber;
 import rx.subscriptions.CompositeSubscription;
@@ -174,6 +175,70 @@ public class SubjectMapTest
 
         s1.unsubscribe();
         s2.unsubscribe();
+
+        // cleanup
+        faultSubscription.unsubscribe();
+    }
+
+    public void testMissHandling()
+    {
+        // setup
+        final AtomicBoolean missHandlerCalled = new AtomicBoolean(false);
+        AtomicInteger counter = new AtomicInteger(0);
+        Subscription faultSubscription = source.faults()
+                .subscribe(new IncrementingFaultSatisfier<>(source, counter));
+
+        TestSubscriber<Integer> testSubscriber1 = new TestSubscriber<>();
+
+        subscribe(source.get("hello"), testSubscriber1);
+
+        source.onNext("hello2", new Callable<Integer>() {
+            @Override
+            public Integer call() throws Exception
+            {
+                fail("Value should not be accessed");
+                return 13;
+            }
+        }, new Action0() {
+            @Override
+            public void call()
+            {
+                missHandlerCalled.set(true);
+            }
+        });
+
+        assertTrue(missHandlerCalled.get());
+
+        testSubscriber1.assertValues(1);
+
+        // cleanup
+        faultSubscription.unsubscribe();
+    }
+
+    @Test
+    public void testErrorHandlingInValueProvider()
+    {
+        // setup
+        final AtomicBoolean missHandlerCalled = new AtomicBoolean(false);
+        TestSubscriber<Integer> testSubscriber1 = new TestSubscriber<>();
+
+        subscribe(source.get("hello"), testSubscriber1);
+
+        source.onNext("hello", new Callable<Integer>() {
+            @Override
+            public Integer call() throws Exception
+            {
+                throw new RuntimeException("Boom");
+            }
+        }, new Action0() {
+            @Override
+            public void call()
+            {
+                missHandlerCalled.set(true);
+            }
+        });
+
+        testSubscriber1.assertError(RuntimeException.class);
     }
 
     @Test

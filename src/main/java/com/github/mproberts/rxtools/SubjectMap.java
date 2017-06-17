@@ -11,6 +11,7 @@ import rx.subscriptions.BooleanSubscription;
 
 import java.lang.ref.WeakReference;
 import java.util.HashMap;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -29,6 +30,13 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 public class SubjectMap<K, V>
 {
+    private static final Action0 EMPTY_ACTION = new Action0() {
+        @Override
+        public void call()
+        {
+        }
+    };
+
     private final Lock _writeLock;
     private final Lock _readLock;
 
@@ -113,15 +121,13 @@ public class SubjectMap<K, V>
 
             // if an observable is being attached then it must have been added to the weak cache
             // and it must still be referenced
-            assert(weakConnector != null);
-
             Observable<V> connector = weakConnector.get();
 
             // the observable must be retained by someone since it is being attached
             assert(connector != null);
 
-            // strongly retain the observable and add the subject so future next calls will be
-            // piped through the subject
+            // strongly retain the observable and add the subject so future next
+            // calls will be piped through the subject
             _weakSources.put(key, new WeakReference<>(value));
             _cache.put(key, connector);
 
@@ -143,12 +149,12 @@ public class SubjectMap<K, V>
         }
     }
 
-    private void emitUpdate(K key, Action1<Subject<V, V>> updater)
+    private void emitUpdate(K key, Action1<Subject<V, V>> updater, Action0 missHandler)
     {
-        emitUpdate(key, updater, false);
+        emitUpdate(key, updater, missHandler, false);
     }
 
-    private void emitUpdate(K key, Action1<Subject<V, V>> updater, boolean disconnect)
+    private void emitUpdate(K key, Action1<Subject<V, V>> updater, Action0 missHandler, boolean disconnect)
     {
         Subject<V, V> subject = null;
 
@@ -186,6 +192,9 @@ public class SubjectMap<K, V>
         if (subject != null) {
             updater.call(subject);
         }
+        else {
+            missHandler.call();
+        }
     }
 
     private void emitFault(K key)
@@ -211,15 +220,55 @@ public class SubjectMap<K, V>
      * should another query request it
      *
      * @param key key with which the specified value is to be associated
-     * @param value value to be send to the specified observable
+     * @param valueProvider the method to be called to create the new value in the case of a hit
+     * @param missHandler the callback for when a subscriber has not been bound
      */
-    public void onNext(K key, final V value)
+    public void onNext(K key, final Callable<V> valueProvider, Action0 missHandler)
     {
         emitUpdate(key, new Action1<Subject<V, V>>() {
             @Override
             public void call(Subject<V, V> subject)
             {
-                subject.onNext(value);
+                try {
+                    subject.onNext(valueProvider.call());
+                }
+                catch (Exception error) {
+                    subject.onError(error);
+                }
+            }
+        }, missHandler);
+    }
+
+    /**
+     * Emits the specified value from the observable associated with the specified key
+     * if there is an associated observable. If no observable has subscribed to the key,
+     * this operation is a noop. If no value is not emitted it will be faulted in later
+     * should another query request it
+     *
+     * @param key key with which the specified value is to be associated
+     * @param valueCreator the method to be called to create the new value in the case of a hit
+     */
+    public void onNext(K key, final Callable<V> valueCreator)
+    {
+        onNext(key, valueCreator, EMPTY_ACTION);
+    }
+
+    /**
+     * Emits the specified value from the observable associated with the specified key
+     * if there is an associated observable. If no observable has subscribed to the key,
+     * this operation is a noop. If no value is not emitted it will be faulted in later
+     * should another query request it
+     *
+     * @param key key with which the specified value is to be associated
+     * @param value value to be send to the specified observable
+     */
+    public void onNext(K key, final V value)
+    {
+        onNext(key, new Callable<V>() {
+            @Override
+            public V call() throws Exception
+            {
+                return value;
             }
         });
     }
@@ -240,7 +289,7 @@ public class SubjectMap<K, V>
             {
                 subject.onError(error);
             }
-        }, true);
+        }, EMPTY_ACTION, true);
     }
 
     /**
