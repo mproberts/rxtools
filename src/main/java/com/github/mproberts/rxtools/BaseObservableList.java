@@ -36,38 +36,42 @@ class BaseObservableList<T> implements ObservableList<T>
     final void applyUpdate(Func1<List<T>, Update<T>> change)
     {
         int ticket;
-        Update<T> update;
+        Update<T> update = null;
+        Exception updateError = null;
 
-        try {
-            synchronized (_updateLock) {
-                ticket = _nextTicket.getAndIncrement();
-                List<T> currentList = _previousList;
+        synchronized (_updateLock) {
+            ticket = _nextTicket.getAndIncrement();
+            List<T> currentList = _previousList;
 
+            try {
                 update = change.call(currentList);
 
-                if (update == null) {
-                    return;
-                }
+                if (update != null) {
+                    if (_previousList == null) {
+                        update = new Update<>(update.list(), Change.reloaded());
+                    }
 
-                if (_previousList == null) {
-                    update = new Update<>(update.list(), Change.reloaded());
+                    _previousList = update.list();
                 }
-
-                _previousList = update.list();
             }
-        }
-        catch (Exception e) {
-            _subject.onError(e);
-            return;
+            catch (Exception e) {
+                updateError = e;
+            }
         }
 
         final Update<T> result = update;
+        final Exception resultError = updateError;
 
         onNext(ticket, update, new Action0() {
             @Override
             public void call()
             {
-                _subject.onNext(result);
+                if (resultError != null) {
+                    _subject.onError(resultError);
+                }
+                else if(result != null) {
+                    _subject.onNext(result);
+                }
             }
         });
     }
