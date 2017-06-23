@@ -1,6 +1,5 @@
-package com.github.mproberts.rxtools.test;
+package com.github.mproberts.rxtools;
 
-import com.github.mproberts.rxtools.SubjectMap;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;

@@ -19,7 +19,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * SubjectMap manages the connection between an entity store and subscribers who are
- * interested in the changes to those entities.
+ * interested in the updates to those entities.
  *
  * The SubjectMap depends on the garbage collector to clean up unreferenced observables
  * when the weak references are automatically cleared. Subjects will be retained strongly
