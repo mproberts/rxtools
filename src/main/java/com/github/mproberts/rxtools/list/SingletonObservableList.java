@@ -1,10 +1,10 @@
-package com.github.mproberts.rxtools;
+package com.github.mproberts.rxtools.list;
 
 import rx.Observable;
 
 import java.util.List;
 
-public class SingletonObservableList<T> implements ObservableList<T>
+class SingletonObservableList<T> implements ObservableList<T>
 {
     private final Observable<Update<T>> _justReloadObservable;
 

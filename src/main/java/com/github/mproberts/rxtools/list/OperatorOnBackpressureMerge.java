@@ -1,7 +1,8 @@
-package com.github.mproberts.rxtools;
+package com.github.mproberts.rxtools.list;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import rx.Observable;
 import rx.Producer;
 import rx.Subscriber;
@@ -11,15 +12,22 @@ import java.util.concurrent.atomic.AtomicLong;
 import rx.internal.operators.BackpressureUtils;
 import rx.plugins.RxJavaHooks;
 
-public class OperatorOnBackpressureMerge<T> implements Observable.Operator<ObservableList.Update<T>, ObservableList.Update<T>>
+class OperatorOnBackpressureMerge<T> implements Observable.Operator<ObservableList.Update<T>, ObservableList.Update<T>>
 {
     static final class Holder
     {
-        static final OperatorOnBackpressureMerge<?> INSTANCE = new OperatorOnBackpressureMerge<Object>();
+        static final OperatorOnBackpressureMerge<?> INSTANCE = new OperatorOnBackpressureMerge<>();
     }
 
     static class BackpressureMergeSubscriber<T> extends Subscriber<ObservableList.Update<T>>
     {
+        private volatile boolean _isDone;
+        private AtomicLong _outstandingRequests = new AtomicLong();
+        private Subscriber<? super ObservableList.Update<T>> _child;
+
+        private List<ObservableList.Change> _queuedChanges = new ArrayList<>();
+        private List<T> _lastList;
+
         private Producer _producer = new Producer() {
             @Override
             public void request(long n)
@@ -39,12 +47,6 @@ public class OperatorOnBackpressureMerge<T> implements Observable.Operator<Obser
                 }
             }
         };
-        private volatile boolean _isDone;
-        private AtomicLong _outstandingRequests = new AtomicLong();
-        private Subscriber<? super ObservableList.Update<T>> _child;
-
-        private List<ObservableList.Change> _queuedChanges = new ArrayList<>();
-        private List<T> _lastList;
 
         BackpressureMergeSubscriber(Subscriber<? super ObservableList.Update<T>> child)
         {
@@ -95,14 +97,14 @@ public class OperatorOnBackpressureMerge<T> implements Observable.Operator<Obser
                 _outstandingRequests.decrementAndGet();
             }
             else {
-                _lastList = update.list();
-                _queuedChanges.addAll(update.changes());
+                _lastList = update.list;
+                _queuedChanges.addAll(update.changes);
             }
         }
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> OperatorOnBackpressureMerge<T> instance()
+    static <T> OperatorOnBackpressureMerge<T> instance()
     {
         return (OperatorOnBackpressureMerge<T>) OperatorOnBackpressureMerge.Holder.INSTANCE;
     }

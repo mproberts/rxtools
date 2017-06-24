@@ -1,5 +1,7 @@
-package com.github.mproberts.rxtools;
+package com.github.mproberts.rxtools.list;
 
+import com.github.mproberts.rxtools.list.ObservableList;
+import com.github.mproberts.rxtools.list.SimpleObservableList;
 import org.junit.Before;
 import org.junit.Test;
 import rx.functions.Action1;
@@ -134,7 +136,7 @@ public class BaseObservableListTest
 
         List<ObservableList.Update<Integer>> events = testSubscriber.getOnNextEvents();
         ObservableList.Update<Integer> lastEvent = events.get(events.size() - 1);
-        List<Integer> list = lastEvent.list();
+        List<Integer> list = lastEvent.list;
 
         for (int i = 0; i < iterations; ++i) {
             assertTrue(list.contains(i));

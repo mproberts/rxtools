@@ -1,5 +1,6 @@
-package com.github.mproberts.rxtools;
+package com.github.mproberts.rxtools.list;
 
+import com.github.mproberts.rxtools.list.ObservableList;
 import rx.Emitter;
 import rx.Observable;
 import rx.functions.Action0;
@@ -48,10 +49,10 @@ class BaseObservableList<T> implements ObservableList<T>
 
                     if (update != null) {
                         if (_previousList == null) {
-                            update = new Update<>(update.list(), Change.reloaded());
+                            update = new Update<>(update.list, Change.reloaded());
                         }
 
-                        _previousList = update.list();
+                        _previousList = update.list;
                     }
                 }
                 catch (Exception e) {

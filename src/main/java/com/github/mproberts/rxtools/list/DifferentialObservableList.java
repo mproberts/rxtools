@@ -1,11 +1,11 @@
-package com.github.mproberts.rxtools;
+package com.github.mproberts.rxtools.list;
 
 import rx.functions.Func1;
 
 import java.util.Collections;
 import java.util.List;
 
-public class DifferentialObservableList<T> extends BaseObservableList<T>
+class DifferentialObservableList<T> extends BaseObservableList<T>
 {
     private static <T> List<Change> computeDiff(List<T> before, List<T> after)
     {

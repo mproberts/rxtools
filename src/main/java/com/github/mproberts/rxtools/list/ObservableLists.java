@@ -1,5 +1,6 @@
-package com.github.mproberts.rxtools;
+package com.github.mproberts.rxtools.list;
 
+import com.github.mproberts.rxtools.SubjectMap;
 import rx.Observable;
 import rx.Scheduler;
 import rx.functions.Func1;

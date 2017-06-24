@@ -1,4 +1,4 @@
-package com.github.mproberts.rxtools;
+package com.github.mproberts.rxtools.list;
 
 import rx.functions.Func1;
 

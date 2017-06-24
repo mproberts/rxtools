@@ -1,5 +1,6 @@
-package com.github.mproberts.rxtools;
+package com.github.mproberts.rxtools.list;
 
+import com.github.mproberts.rxtools.list.ObservableList;
 import rx.Observable;
 import rx.Scheduler;
 import rx.functions.Func1;
@@ -35,10 +36,10 @@ class BufferedObservableList<T> implements ObservableList<T>
                         List<Change> allChanges = new ArrayList<>();
 
                         for (Update<T> update : updates) {
-                            allChanges.addAll(update.changes());
+                            allChanges.addAll(update.changes);
                         }
 
-                        return new Update<>(lastUpdate.list(), allChanges);
+                        return new Update<>(lastUpdate.list, allChanges);
                     }
                 });
     }

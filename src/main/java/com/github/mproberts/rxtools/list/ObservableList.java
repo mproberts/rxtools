@@ -1,4 +1,4 @@
-package com.github.mproberts.rxtools;
+package com.github.mproberts.rxtools.list;
 
 import rx.Observable;
 
@@ -103,8 +103,8 @@ public interface ObservableList<T>
 
     final class Update<T>
     {
-        private final List<T> _list;
-        private final List<Change> _changes;
+        public final List<T> list;
+        public final List<Change> changes;
 
         Update(List<T> list, Change change)
         {
@@ -113,18 +113,8 @@ public interface ObservableList<T>
 
         Update(List<T> list, List<Change> changes)
         {
-            _list = list;
-            _changes = changes;
-        }
-
-        public List<Change> changes()
-        {
-            return _changes;
-        }
-
-        public List<T> list()
-        {
-            return _list;
+            this.list = list;
+            this.changes = changes;
         }
 
         @Override
@@ -132,7 +122,7 @@ public interface ObservableList<T>
         {
             StringBuilder builder = new StringBuilder();
 
-            for (Change change : _changes) {
+            for (Change change : changes) {
                 if (builder.length() > 0) {
                     builder.append(", ");
                 }
@@ -140,7 +130,7 @@ public interface ObservableList<T>
                 builder.append(change.toString());
             }
 
-            return "list=[" + _list.size() + "], changes={" + builder.toString() + "}";
+            return "list=[" + list.size() + "], changes={" + builder.toString() + "}";
         }
 
         @Override
@@ -152,15 +142,15 @@ public interface ObservableList<T>
 
             Update other = (Update) obj;
 
-            return other.list().equals(list())
-                    && other.changes().equals(changes());
+            return other.list.equals(list)
+                    && other.changes.equals(changes);
         }
 
         @Override
         public int hashCode()
         {
-            return list().hashCode()
-                    | (changes().hashCode() << 16);
+            return list.hashCode()
+                    | (changes.hashCode() << 16);
         }
     }
 

@@ -1,6 +1,7 @@
-package com.github.mproberts.rxtools;
+package com.github.mproberts.rxtools.list;
 
 import java.util.List;
+
 import rx.Observable;
 import rx.functions.Func1;
 
@@ -23,7 +24,7 @@ public class TransformObservableList<K, V> implements ObservableList<V>
             @Override
             public Update<V> call(Update<K> key)
             {
-                return new Update<>(_mappingMethod.call(key.list()), key.changes());
+                return new Update<>(_mappingMethod.call(key.list), key.changes);
             }
         });
     }

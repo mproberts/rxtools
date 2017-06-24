@@ -1,4 +1,4 @@
-package com.github.mproberts.rxtools;
+package com.github.mproberts.rxtools.list;
 
 import rx.functions.Action1;
 import rx.functions.Func1;
@@ -44,8 +44,8 @@ public class SimpleObservableList<T> extends BaseObservableList<T>
                     for (Func1<List<T>, Update<T>> operation : _batchedOperations) {
                         Update<T> update = operation.call(resultList);
 
-                        allChanges.addAll(update.changes());
-                        resultList = update.list();
+                        allChanges.addAll(update.changes);
+                        resultList = update.list;
                     }
 
                     _batchedOperations = null;

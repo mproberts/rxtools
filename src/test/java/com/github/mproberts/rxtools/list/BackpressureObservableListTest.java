@@ -1,5 +1,8 @@
-package com.github.mproberts.rxtools;
+package com.github.mproberts.rxtools.list;
 
+import com.github.mproberts.rxtools.list.ObservableList;
+import com.github.mproberts.rxtools.list.ObservableLists;
+import com.github.mproberts.rxtools.list.SimpleObservableList;
 import org.junit.Test;
 import rx.Subscription;
 import rx.exceptions.MissingBackpressureException;
@@ -30,7 +33,7 @@ public class BackpressureObservableListTest
                     @Override
                     public void call(ObservableList.Update<Integer> integerUpdate)
                     {
-                        if (integerUpdate.list().size() % 10 == 0) {
+                        if (integerUpdate.list.size() % 10 == 0) {
                             Thread.yield();
                         }
                     }
@@ -76,7 +79,7 @@ public class BackpressureObservableListTest
                             e.printStackTrace();
                         }
 
-                        for (ObservableList.Change change : list.changes()) {
+                        for (ObservableList.Change change : list.changes) {
                             if (change.type == ObservableList.Change.Type.Inserted) {
                                 insertions.incrementAndGet();
                             }
@@ -133,7 +136,7 @@ public class BackpressureObservableListTest
         int count = 0;
 
         for (ObservableList.Update<Integer> update : (List<ObservableList.Update<Integer>>)testSubscriber.getOnNextEvents()) {
-            count += update.changes().size();
+            count += update.changes.size();
         }
 
         assert(testSubscriber.getOnNextEvents().size() < 1001);
@@ -159,10 +162,10 @@ public class BackpressureObservableListTest
 
         ObservableList.Update<Integer> update = (ObservableList.Update<Integer>) testSubscriber.getOnNextEvents().get(0);
 
-        ObservableList.Change firstChange = update.changes().get(0);
+        ObservableList.Change firstChange = update.changes.get(0);
 
         assertEquals(ObservableList.Change.Type.Reloaded, firstChange.type);
-        assertEquals(501, update.changes().size());
+        assertEquals(501, update.changes.size());
 
         testSubscriber.unsubscribe();
     }
