@@ -11,17 +11,16 @@ import rx.subjects.PublishSubject;
 import java.util.Collections;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 class BaseObservableList<T> implements ObservableList<T>
 {
     private List<T> _previousList = null;
 
-    private final Object _updateLock = new Object();
     private PublishSubject<Update<T>> _subject = PublishSubject.create();
 
-    private AtomicInteger _nowServing = new AtomicInteger();
-    private AtomicInteger _nextTicket = new AtomicInteger();
+    private AtomicLong _nowServing = new AtomicLong();
+    private AtomicLong _nextTicket = new AtomicLong();
 
     BaseObservableList()
     {
@@ -35,49 +34,44 @@ class BaseObservableList<T> implements ObservableList<T>
 
     final void applyUpdate(Func1<List<T>, Update<T>> change)
     {
-        int ticket;
-        Update<T> update = null;
-        Exception updateError = null;
-
-        synchronized (_updateLock) {
-            ticket = _nextTicket.getAndIncrement();
-            List<T> currentList = _previousList;
-
-            try {
-                update = change.call(currentList);
-
-                if (update != null) {
-                    if (_previousList == null) {
-                        update = new Update<>(update.list(), Change.reloaded());
-                    }
-
-                    _previousList = update.list();
-                }
-            }
-            catch (Exception e) {
-                updateError = e;
-            }
-        }
-
-        final Update<T> result = update;
-        final Exception resultError = updateError;
-
-        onNext(ticket, update, new Action0() {
+        onNext(new Action0() {
             @Override
             public void call()
             {
-                if (resultError != null) {
-                    _subject.onError(resultError);
+                Update<T> update = null;
+                Exception updateError = null;
+
+                List<T> currentList = _previousList;
+
+                try {
+                    update = change.call(currentList);
+
+                    if (update != null) {
+                        if (_previousList == null) {
+                            update = new Update<>(update.list(), Change.reloaded());
+                        }
+
+                        _previousList = update.list();
+                    }
                 }
-                else if(result != null) {
-                    _subject.onNext(result);
+                catch (Exception e) {
+                    updateError = e;
+                }
+
+                if (updateError != null) {
+                    _subject.onError(updateError);
+                }
+                else if (update != null) {
+                    _subject.onNext(update);
                 }
             }
         });
     }
 
-    private void onNext(int ticket, Update<T> update, Action0 doNotify)
+    private void onNext(Action0 doNotify)
     {
+        long ticket = _nextTicket.getAndIncrement();
+
         // ensure ordered
         while (_nowServing.get() != ticket) {
             Thread.yield();
@@ -96,32 +90,19 @@ class BaseObservableList<T> implements ObservableList<T>
         return _subject
                 .startWith(Observable.unsafeCreate(new OnSubscribeCreate<>(new Action1<Emitter<Update<T>>>() {
                     @Override
-                    public void call(Emitter<Update<T>> updateEmitter) {
-                        int ticket = 0;
-                        Update<T> update = null;
-
-                        synchronized (_updateLock) {
-                            if (_previousList != null) {
-                                update = new Update<>(new ArrayList<>(_previousList), Collections.singletonList(Change.reloaded()));
-                                ticket = _nextTicket.getAndIncrement();
-                            }
-                        }
-
-                        if (update != null) {
-                            final Update<T> result = update;
-
-                            onNext(ticket, update, new Action0() {
-                                @Override
-                                public void call()
-                                {
-                                    updateEmitter.onNext(result);
-                                    updateEmitter.onCompleted();
+                    public void call(Emitter<Update<T>> updateEmitter)
+                    {
+                        onNext(new Action0() {
+                            @Override
+                            public void call()
+                            {
+                                if (_previousList != null) {
+                                    updateEmitter.onNext(new Update<>(new ArrayList<>(_previousList), Collections.singletonList(Change.reloaded())));
                                 }
-                            });
-                        }
-                        else {
-                            updateEmitter.onCompleted();
-                        }
+
+                                updateEmitter.onCompleted();
+                            }
+                        });
                     }
                 }, Emitter.BackpressureMode.LATEST)));
     }

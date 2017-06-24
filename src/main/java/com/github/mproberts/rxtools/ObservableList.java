@@ -49,6 +49,21 @@ public interface ObservableList<T>
         }
 
         @Override
+        public String toString()
+        {
+            switch (type) {
+                case Moved:
+                    return "moved(" + from + " -> " + to + ")";
+                case Inserted:
+                    return "inserted(" + to + ")";
+                case Removed:
+                    return "removed(" + from + ")";
+                default:
+                    return "reloaded";
+            }
+        }
+
+        @Override
         public boolean equals(Object obj)
         {
             if (!(obj instanceof Change)) {
@@ -110,6 +125,22 @@ public interface ObservableList<T>
         public List<T> list()
         {
             return _list;
+        }
+
+        @Override
+        public String toString()
+        {
+            StringBuilder builder = new StringBuilder();
+
+            for (Change change : _changes) {
+                if (builder.length() > 0) {
+                    builder.append(", ");
+                }
+
+                builder.append(change.toString());
+            }
+
+            return "list=[" + _list.size() + "], changes={" + builder.toString() + "}";
         }
 
         @Override

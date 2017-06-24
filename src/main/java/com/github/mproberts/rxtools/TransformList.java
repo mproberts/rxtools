@@ -103,10 +103,6 @@ public class TransformList<K, V> implements List<V>
     private final List<K> _list;
     private final Func1<K, V> _transform;
 
-    private void onFetch(int index)
-    {
-    }
-
     TransformList(List<K> list, Func1<K, V> transform)
     {
         _list = list;
@@ -154,8 +150,6 @@ public class TransformList<K, V> implements List<V>
     @Override
     public V get(int index)
     {
-        onFetch(index);
-
         return _transform.call(_list.get(index));
     }
 
