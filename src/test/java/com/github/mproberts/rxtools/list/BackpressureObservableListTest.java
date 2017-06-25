@@ -1,8 +1,5 @@
 package com.github.mproberts.rxtools.list;
 
-import com.github.mproberts.rxtools.list.ObservableList;
-import com.github.mproberts.rxtools.list.ObservableLists;
-import com.github.mproberts.rxtools.list.SimpleObservableList;
 import org.junit.Test;
 import rx.Subscription;
 import rx.exceptions.MissingBackpressureException;
@@ -23,8 +20,8 @@ public class BackpressureObservableListTest
     @Test
     public void testBasicBackpressure() throws InterruptedException, ExecutionException
     {
-        int iterations = 100;
-        SimpleObservableList<Integer> list = new SimpleObservableList<>();
+        final int iterations = 100;
+        final SimpleObservableList<Integer> list = new SimpleObservableList<>();
         TestSubscriber testSubscriber = new TestSubscriber();
 
         list.updates()
@@ -59,10 +56,10 @@ public class BackpressureObservableListTest
         assertTrue(testSubscriber.awaitValueCount(iterations, 10000, TimeUnit.MILLISECONDS));
     }
 
-    TestSubscriber runBackPressureTest(int iterations, SimpleObservableList<Integer> originalList, ObservableList<Integer> list) throws InterruptedException
+    TestSubscriber runBackPressureTest(final int iterations, SimpleObservableList<Integer> originalList, ObservableList<Integer> list) throws InterruptedException
     {
-        AtomicInteger insertions = new AtomicInteger(0);
-        AtomicBoolean crashed = new AtomicBoolean();
+        final AtomicInteger insertions = new AtomicInteger(0);
+        final AtomicBoolean crashed = new AtomicBoolean();
 
         TestSubscriber testSubscriber = new TestSubscriber();
 

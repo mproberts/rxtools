@@ -13,7 +13,8 @@ public class TransformList<K, V> implements List<V>
     {
         private final Iterator<K> _iterator;
 
-        public TransformIterator(Iterator<K> iterator) {
+        public TransformIterator(Iterator<K> iterator)
+        {
             _iterator = iterator;
         }
 
@@ -107,6 +108,41 @@ public class TransformList<K, V> implements List<V>
     {
         _list = list;
         _transform = transform;
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        if (obj == this) {
+            return true;
+        }
+
+        if (obj instanceof List) {
+            List other = (List) obj;
+
+            if (size() != other.size()) {
+                return false;
+            }
+
+            Iterator iterator = iterator();
+            Iterator otherIterator = other.iterator();
+
+            while (iterator.hasNext()) {
+                // other and this have the same number of elements so we can co-iterate
+                Object e1 = iterator.next();
+                Object e2 = otherIterator.next();
+
+                boolean isEqual = e1 == null ? e2 == null : e1.equals(e2);
+
+                if (!isEqual) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     @Override

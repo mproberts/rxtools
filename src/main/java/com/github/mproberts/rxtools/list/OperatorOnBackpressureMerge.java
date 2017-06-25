@@ -98,7 +98,16 @@ class OperatorOnBackpressureMerge<T> implements Observable.Operator<ObservableLi
             }
             else {
                 _lastList = update.list;
-                _queuedChanges.addAll(update.changes);
+
+                for (ObservableList.Change change : update.changes) {
+                    if (change.type == ObservableList.Change.Type.Reloaded) {
+                        _queuedChanges.clear();
+                        break;
+                    }
+                    else {
+                        _queuedChanges.add(change);
+                    }
+                }
             }
         }
     }

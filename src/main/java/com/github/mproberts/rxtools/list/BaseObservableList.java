@@ -1,6 +1,5 @@
 package com.github.mproberts.rxtools.list;
 
-import com.github.mproberts.rxtools.list.ObservableList;
 import rx.Emitter;
 import rx.Observable;
 import rx.functions.Action0;
@@ -18,10 +17,18 @@ class BaseObservableList<T> implements ObservableList<T>
 {
     private List<T> _previousList = null;
 
-    private PublishSubject<Update<T>> _subject = PublishSubject.create();
+    private final PublishSubject<Update<T>> _subject = PublishSubject.create();
 
-    private AtomicLong _nowServing = new AtomicLong();
-    private AtomicLong _nextTicket = new AtomicLong();
+    private final AtomicLong _nowServing = new AtomicLong();
+    private final AtomicLong _nextTicket = new AtomicLong();
+
+    private final ThreadLocal<Boolean> _isApplyingUpdate = new ThreadLocal<Boolean>() {
+        @Override
+        protected Boolean initialValue()
+        {
+            return Boolean.FALSE;
+        }
+    };
 
     BaseObservableList()
     {
@@ -33,7 +40,21 @@ class BaseObservableList<T> implements ObservableList<T>
         _previousList = initialState;
     }
 
-    final void applyUpdate(Func1<List<T>, Update<T>> change)
+    /**
+     * Note: this is a dangerous call, make sure you know exactly what you are doing,
+     * you probably don't need to use this. Think about it for a while
+     * @param previousList
+     */
+    List<T> setPreviousList(List<T> previousList)
+    {
+        List<T> oldPreviousList = _previousList;
+
+        _previousList = previousList;
+
+        return oldPreviousList;
+    }
+
+    final void applyUpdate(final Func1<List<T>, Update<T>> change)
     {
         onNext(new Action0() {
             @Override
@@ -71,17 +92,27 @@ class BaseObservableList<T> implements ObservableList<T>
 
     private void onNext(Action0 doNotify)
     {
-        long ticket = _nextTicket.getAndIncrement();
+        boolean applyingUpdate = _isApplyingUpdate.get();
 
-        // ensure ordered
-        while (_nowServing.get() != ticket) {
-            Thread.yield();
+        _isApplyingUpdate.set(true);
+
+        if (!applyingUpdate) {
+            long ticket = _nextTicket.getAndIncrement();
+
+            // ensure ordered
+            while (_nowServing.get() != ticket) {
+                Thread.yield();
+            }
         }
 
         doNotify.call();
 
-        // allow the next update to take hold
-        _nowServing.incrementAndGet();
+        if (!applyingUpdate) {
+            // allow the next update to take hold
+            _nowServing.incrementAndGet();
+
+            _isApplyingUpdate.set(false);
+        }
     }
 
     @Override
@@ -91,7 +122,7 @@ class BaseObservableList<T> implements ObservableList<T>
         return _subject
                 .startWith(Observable.unsafeCreate(new OnSubscribeCreate<>(new Action1<Emitter<Update<T>>>() {
                     @Override
-                    public void call(Emitter<Update<T>> updateEmitter)
+                    public void call(final Emitter<Update<T>> updateEmitter)
                     {
                         onNext(new Action0() {
                             @Override

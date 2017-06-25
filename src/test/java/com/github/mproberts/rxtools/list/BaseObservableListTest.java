@@ -1,7 +1,5 @@
 package com.github.mproberts.rxtools.list;
 
-import com.github.mproberts.rxtools.list.ObservableList;
-import com.github.mproberts.rxtools.list.SimpleObservableList;
 import org.junit.Before;
 import org.junit.Test;
 import rx.functions.Action1;
@@ -30,7 +28,7 @@ public class BaseObservableListTest
     @Test
     public void testBasicAdd()
     {
-        AtomicInteger counter = new AtomicInteger(0);
+        final AtomicInteger counter = new AtomicInteger(0);
         TestSubscriber<ObservableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
 
         list.updates().subscribe(testSubscriber);
@@ -39,7 +37,7 @@ public class BaseObservableListTest
         list.add(counter.incrementAndGet());
 
         testSubscriber.assertValues(
-                new ObservableList.Update<>(Arrays.asList(), ObservableList.Change.reloaded()),
+                new ObservableList.Update<>(Arrays.<Integer>asList(), ObservableList.Change.reloaded()),
                 new ObservableList.Update<>(Arrays.asList(1), ObservableList.Change.inserted(0)),
                 new ObservableList.Update<>(Arrays.asList(1, 2), ObservableList.Change.inserted(1)));
     }
@@ -47,7 +45,7 @@ public class BaseObservableListTest
     @Test
     public void testBatchAddRemove()
     {
-        AtomicInteger counter = new AtomicInteger(0);
+        final AtomicInteger counter = new AtomicInteger(0);
         TestSubscriber<ObservableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
 
         list.updates().subscribe(testSubscriber);
@@ -64,7 +62,7 @@ public class BaseObservableListTest
         });
 
         testSubscriber.assertValues(
-                new ObservableList.Update<>(Arrays.asList(), ObservableList.Change.reloaded()),
+                new ObservableList.Update<>(Arrays.<Integer>asList(), ObservableList.Change.reloaded()),
                 new ObservableList.Update<>(Arrays.asList(1, 3), Arrays.asList(
                         ObservableList.Change.inserted(0),
                         ObservableList.Change.inserted(1),
@@ -77,9 +75,9 @@ public class BaseObservableListTest
     public void testOrderedInOrderedOut() throws InterruptedException
     {
         final int iterations = 100;
-        AtomicInteger counter = new AtomicInteger(0);
+        final AtomicInteger counter = new AtomicInteger(0);
         TestSubscriber<ObservableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
-        ExecutorService executorService = Executors.newWorkStealingPool(iterations / 4);
+        ExecutorService executorService = Executors.newFixedThreadPool(iterations / 4);
 
         List<Callable<Object>> callbales = new ArrayList<>();
         List<Integer> allEntries = new ArrayList<>();
@@ -111,12 +109,11 @@ public class BaseObservableListTest
     public void testThrashAddition() throws InterruptedException
     {
         final int iterations = 1000;
-        AtomicInteger counter = new AtomicInteger(0);
+        final AtomicInteger counter = new AtomicInteger(0);
         TestSubscriber<ObservableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
-        ExecutorService executorService = Executors.newWorkStealingPool(iterations / 4);
+        ExecutorService executorService = Executors.newFixedThreadPool(iterations / 4);
 
         List<Callable<Object>> callbales = new ArrayList<>();
-        List<Integer> allEntries = new ArrayList<>();
 
         for (int i = 0; i < iterations; ++i) {
             callbales.add(new Callable<Object>() {

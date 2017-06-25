@@ -15,7 +15,7 @@ public class SimpleObservableList<T> extends BaseObservableList<T>
 
     public SimpleObservableList()
     {
-        super(Collections.emptyList());
+        super(Collections.<T>emptyList());
     }
 
     public SimpleObservableList(List<T> initialState)
@@ -23,7 +23,7 @@ public class SimpleObservableList<T> extends BaseObservableList<T>
         super(initialState);
     }
 
-    public void batch(Action1<SimpleObservableList<T>> changes)
+    public void batch(final Action1<SimpleObservableList<T>> changes)
     {
         final SimpleObservableList<T> target = this;
 
@@ -56,7 +56,7 @@ public class SimpleObservableList<T> extends BaseObservableList<T>
         });
     }
 
-    void applyOperation(Func1<List<T>, Update<T>> operation)
+    void applyOperation(final Func1<List<T>, Update<T>> operation)
     {
         synchronized (_batchingLock) {
             if (_batchedOperations != null) {
@@ -76,7 +76,7 @@ public class SimpleObservableList<T> extends BaseObservableList<T>
         });
     }
 
-    public void add(T value)
+    public void add(final T value)
     {
         applyOperation(new Func1<List<T>, Update<T>>() {
             @Override
@@ -91,7 +91,42 @@ public class SimpleObservableList<T> extends BaseObservableList<T>
         });
     }
 
-    public void addAll(Collection<? extends T> values)
+    public void add(final int index, final T value)
+    {
+        applyOperation(new Func1<List<T>, Update<T>>() {
+            @Override
+            public Update<T> call(List<T> list)
+            {
+                int position = Math.min(list.size(), index);
+
+                list.add(index, value);
+
+                return new Update<>(list, Change.inserted(position));
+            }
+        });
+    }
+
+    public void move(final int fromIndex, final int toIndex)
+    {
+        applyOperation(new Func1<List<T>, Update<T>>() {
+            @Override
+            public Update<T> call(List<T> list)
+            {
+                int toPosition = Math.min(list.size() - 1, toIndex);
+
+                if (toPosition == fromIndex) {
+                    // do nothing
+                    return null;
+                }
+
+                list.add(toPosition, list.remove(fromIndex));
+
+                return new Update<>(list, Change.moved(fromIndex, toIndex));
+            }
+        });
+    }
+
+    public void addAll(final Collection<? extends T> values)
     {
         applyOperation(new Func1<List<T>, Update<T>>() {
             @Override
@@ -112,7 +147,7 @@ public class SimpleObservableList<T> extends BaseObservableList<T>
         });
     }
 
-    public void remove(int index)
+    public void remove(final int index)
     {
         applyOperation(new Func1<List<T>, Update<T>>() {
             @Override
@@ -125,7 +160,7 @@ public class SimpleObservableList<T> extends BaseObservableList<T>
         });
     }
 
-    public void remove(T value)
+    public void remove(final T value)
     {
         applyOperation(new Func1<List<T>, Update<T>>() {
             @Override
