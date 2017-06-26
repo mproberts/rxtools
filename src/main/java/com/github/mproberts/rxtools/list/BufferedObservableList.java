@@ -1,11 +1,11 @@
 package com.github.mproberts.rxtools.list;
 
-import com.github.mproberts.rxtools.list.ObservableList;
 import rx.Observable;
 import rx.Scheduler;
 import rx.functions.Func1;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -37,6 +37,14 @@ class BufferedObservableList<T> implements ObservableList<T>
 
                         for (Update<T> update : updates) {
                             allChanges.addAll(update.changes);
+                        }
+
+                        for (Change allChange : allChanges) {
+                            // it only takes one reload to force a reload
+                            if (allChange.type == Change.Type.Reloaded) {
+                                allChanges = Collections.singletonList(Change.reloaded());
+                                break;
+                            }
                         }
 
                         return new Update<>(lastUpdate.list, allChanges);
