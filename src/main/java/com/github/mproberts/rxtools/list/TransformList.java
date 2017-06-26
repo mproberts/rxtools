@@ -39,7 +39,7 @@ class TransformList<K, V> implements List<V>
         @Override
         public void remove()
         {
-            _iterator.remove();
+            throw new UnsupportedOperationException("Not modifiable");
         }
     }
 

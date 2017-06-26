@@ -65,13 +65,19 @@ class ConcatList implements List
         @Override
         public Object next()
         {
+            while (!currentIterator().hasNext() && nextIterator()) {
+                if (currentIterator().hasNext()) {
+                    break;
+                }
+            }
+
             return currentIterator().next();
         }
 
         @Override
         public void remove()
         {
-            currentIterator().remove();
+            throw new UnsupportedOperationException("Not modifiable");
         }
     }
 
@@ -79,6 +85,7 @@ class ConcatList implements List
     {
         private final ListIterator[] _iterators;
         private int _currentIteratorIndex;
+        private int _offset;
 
         public ConcatListIterator(List[] lists)
         {
@@ -115,7 +122,7 @@ class ConcatList implements List
             ++_currentIteratorIndex;
 
             if (_currentIteratorIndex >= _iterators.length) {
-                _currentIteratorIndex = _iterators.length;
+                _currentIteratorIndex = _iterators.length - 1;
                 return false;
             }
 
@@ -145,6 +152,8 @@ class ConcatList implements List
         @Override
         public Object next()
         {
+            ++_offset;
+
             return currentIterator().next();
         }
 
@@ -171,19 +180,21 @@ class ConcatList implements List
         @Override
         public Object previous()
         {
+            --_offset;
+
             return currentIterator().previous();
         }
 
         @Override
         public int nextIndex()
         {
-            return currentIterator().nextIndex();
+            return _offset;
         }
 
         @Override
         public int previousIndex()
         {
-            return currentIterator().previousIndex();
+            return _offset - 1;
         }
 
         @Override
@@ -229,7 +240,7 @@ class ConcatList implements List
     @Override
     public boolean isEmpty()
     {
-        return size() != 0;
+        return size() == 0;
     }
 
     @Override
@@ -356,7 +367,7 @@ class ConcatList implements List
             }
         }
 
-        return new ConcatList(sublists);
+        return new ConcatList(sublists.toArray(new List[sublists.size()]));
     }
 
     @Override
