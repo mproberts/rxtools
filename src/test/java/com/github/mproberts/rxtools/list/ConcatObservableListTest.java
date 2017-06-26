@@ -3,7 +3,6 @@ package com.github.mproberts.rxtools.list;
 import org.junit.Test;
 import rx.observers.TestSubscriber;
 
-import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 
@@ -20,10 +19,14 @@ public class ConcatObservableListTest
 
         list.updates().subscribe(testSubscriber);
 
-        for (ObservableList.Update update : (List<ObservableList.Update>) testSubscriber.getOnNextEvents()) {
-            System.out.println(update);
-            System.out.println(update.list);
-        }
+        testSubscriber.assertValueCount(1);
+
+        List<ObservableList.Update> onNextEvents = testSubscriber.getOnNextEvents();
+
+        ObservableList.Update update = onNextEvents.get(0);
+
+        assertEquals(ObservableList.Change.reloaded(), update.changes.get(0));
+        assertEquals(Arrays.asList(1, 2, 3), update.list);
     }
 
     @Test
