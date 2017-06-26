@@ -7,7 +7,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 
-public class TransformList<K, V> implements List<V>
+class TransformList<K, V> implements List<V>
 {
     private class TransformIterator implements Iterator<V>
     {
@@ -34,6 +34,12 @@ public class TransformList<K, V> implements List<V>
             }
 
             return _transform.call(next);
+        }
+
+        @Override
+        public void remove()
+        {
+            _iterator.remove();
         }
     }
 

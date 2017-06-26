@@ -9,6 +9,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * A utility class providing access to wrapping methods for working with ObservableList
+ * instances. This class provides methods for creating, transforming, merging and managing
+ * ObservableLists.
+ */
 public final class ObservableLists
 {
     private ObservableLists()
@@ -131,11 +136,24 @@ public final class ObservableLists
         return new BackpressureMergeObservableList<>(list);
     }
 
+    /**
+     * Observes a stream of type List and computes the diff between successive emissions. The
+     * wrapped ObservableList will emit the new list state when new emissions are available
+     * along with the diff which transforms the previous into the next state.
+     * @param list The list to wrap
+     * @param alwaysReload If true, the diff between emissions will not be computed, instead,
+     *                     a reload will be emitted for every change
+     * @param <T> The type of elements
+     * @return A new ObservableList
+     */
     public static <T> ObservableList<T> diff(Observable<List<T>> list, boolean alwaysReload)
     {
         return new DifferentialObservableList<>(list, alwaysReload);
     }
 
+    /**
+     * See {@link #diff(Observable<List>) diff}.
+     */
     public static <T> ObservableList<T> diff(Observable<List<T>> list)
     {
         return new DifferentialObservableList<>(list);

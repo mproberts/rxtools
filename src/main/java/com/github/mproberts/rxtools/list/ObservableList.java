@@ -5,10 +5,21 @@ import rx.Observable;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Represents a list with changes to the underlying dataset being emitted as updates including
+ * a copy of the data and a changeset to transform from one list state to the next.
+ * @param <T> The value type of the list
+ */
 public interface ObservableList<T>
 {
+    /**
+     * A change is a single modification to a list which transforms it from one state to the next
+     */
     class Change
     {
+        /**
+         * The type of the change dictates which behaviour to apply to the list
+         */
         enum Type
         {
             Moved,
@@ -21,24 +32,44 @@ public interface ObservableList<T>
         public final int from;
         public final int to;
 
+        /**
+         *
+         * @param from
+         * @param to
+         * @return
+         */
         public static Change moved(int from, int to)
         {
             return new Change(Type.Moved, from, to);
         }
 
+        /**
+         *
+         * @param to
+         * @return
+         */
         public static Change inserted(int to)
         {
             return new Change(Type.Inserted, to, to);
         }
 
+        /**
+         *
+         * @param from
+         * @return
+         */
         public static Change removed(int from)
         {
             return new Change(Type.Removed, from, from);
         }
 
+        /**
+         *
+         * @return
+         */
         public static Change reloaded()
         {
-            return new Change(Type.Reloaded, -1, -1);
+            return new Change(Type.Reloaded, Integer.MIN_VALUE, Integer.MIN_VALUE);
         }
 
         Change(Type type, int from, int to)
@@ -101,9 +132,31 @@ public interface ObservableList<T>
         }
     }
 
+    /**
+     * An update represents the delta between the previous list state and the new list
+     * state, including an immutable copy of the new state.
+     *
+     * The change list may contain any number of changes and is designed such that:
+     * L0 + C1 + C2 + C3 = L, where L0 is the previous update emitted from the
+     * list and C1, ... are the changes contained within the update.
+     *
+     * The list contained within the update is immutable. A new list will be sent with
+     * every update, this should be taken into consideration when using observable lists
+     * as you may wish to use an ID as the value of your list and map the value using a
+     * repository of some kind. A {@link com.github.mproberts.rxtools.SubjectMap} is a
+     * useful candidate for applying this pattern.
+     * @param <T> The type of values contained in the list
+     */
     final class Update<T>
     {
+        /**
+         * The current state of the underlying list
+         */
         public final List<T> list;
+
+        /**
+         * The set of changes which, when applied to the prior state, produce the new list
+         */
         public final List<Change> changes;
 
         Update(List<T> list, Change change)
@@ -154,5 +207,11 @@ public interface ObservableList<T>
         }
     }
 
+    /**
+     * A stream of updates that represent all changes to the underlying list. When first subscribed,
+     * the list will emit a reload event immediately, if there is an existing state for the list
+     * already available.
+     * @return An Observable bound to the update stream of the list
+     */
     Observable<Update<T>> updates();
 }
