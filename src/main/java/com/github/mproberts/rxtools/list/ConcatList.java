@@ -2,7 +2,7 @@ package com.github.mproberts.rxtools.list;
 
 import java.util.*;
 
-public class ConcatList implements List
+class ConcatList implements List
 {
     private final List[] _lists;
     private int _totalSize;

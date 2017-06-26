@@ -5,12 +5,12 @@ import java.util.List;
 import rx.Observable;
 import rx.functions.Func1;
 
-public class TransformObservableList<K, V> implements ObservableList<V>
+class TransformObservableList<K, V> implements ObservableList<V>
 {
     private final ObservableList<K> _list;
     private final Func1<List<K>, List<V>> _mappingMethod;
 
-    public TransformObservableList(ObservableList<K> list, Func1<List<K>, List<V>> mapping)
+    TransformObservableList(ObservableList<K> list, Func1<List<K>, List<V>> mapping)
     {
         _list = list;
         _mappingMethod = mapping;
