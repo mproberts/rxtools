@@ -148,7 +148,13 @@ public class BackpressureObservableListTest
         SimpleObservableList<Integer> list = new SimpleObservableList<>();
         ObservableList<Integer> bufferedList = ObservableLists.buffer(list, 50, TimeUnit.MILLISECONDS, testScheduler);
 
-        TestSubscriber testSubscriber = runBackPressureTest(500, list, bufferedList);
+        TestSubscriber testSubscriber = new TestSubscriber();
+
+        bufferedList.updates().subscribe(testSubscriber);
+
+        for (int i = 0; i < 50; ++i) {
+            list.add(i);
+        }
 
         testScheduler.advanceTimeBy(50, TimeUnit.MILLISECONDS);
         testScheduler.triggerActions();
@@ -157,12 +163,24 @@ public class BackpressureObservableListTest
         testSubscriber.assertNoErrors();
         testSubscriber.assertValueCount(1);
 
-        ObservableList.Update<Integer> update = (ObservableList.Update<Integer>) testSubscriber.getOnNextEvents().get(0);
+        for (int i = 0; i < 500; ++i) {
+            list.add(i);
+        }
 
-        ObservableList.Change firstChange = update.changes.get(0);
+        testScheduler.advanceTimeBy(50, TimeUnit.MILLISECONDS);
+        testScheduler.triggerActions();
+        testSubscriber.awaitValueCount(2, 100, TimeUnit.MILLISECONDS);
+
+        // should collapse initial reload + 100 inserts into a reload
+        ObservableList.Update<Integer> update1 = (ObservableList.Update<Integer>) testSubscriber.getOnNextEvents().get(0);
+
+        // should collapse 500 inserts into one changeset
+        ObservableList.Update<Integer> update2 = (ObservableList.Update<Integer>) testSubscriber.getOnNextEvents().get(1);
+
+        ObservableList.Change firstChange = update1.changes.get(0);
 
         assertEquals(ObservableList.Change.Type.Reloaded, firstChange.type);
-        assertEquals(501, update.changes.size());
+        assertEquals(500, update2.changes.size());
 
         testSubscriber.unsubscribe();
     }
