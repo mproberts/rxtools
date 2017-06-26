@@ -137,6 +137,19 @@ public final class ObservableLists
     }
 
     /**
+     * Transforms an ObservableList containing VisibilityState items into an ObservableList
+     * which includes in its emissions the changes in visibility status of the items within the
+     * original list
+     * @param list The list to wrap
+     * @param <T> The type of elements
+     * @return A new ObservableList
+     */
+    public static <T> ObservableList<T> collapseVisibility(ObservableList<VisibilityState<T>> list)
+    {
+        return new VisibilityStateObservableList<>(list);
+    }
+
+    /**
      * Observes a stream of type List and computes the diff between successive emissions. The
      * wrapped ObservableList will emit the new list state when new emissions are available
      * along with the diff which transforms the previous into the next state.
