@@ -2,6 +2,7 @@ package com.github.mproberts.rxtools;
 
 import rx.Observable;
 import rx.Subscriber;
+import rx.Subscription;
 import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.subjects.BehaviorSubject;
@@ -32,15 +33,17 @@ public class SubjectMap<K, V>
     private final Lock _readLock;
 
     private final HashMap<K, WeakReference<Observable<V>>> _weakCache;
+    private final HashMap<K, WeakReference<Subject<V, V>>> _weakSources;
+
     private final HashMap<K, Observable<V>> _cache;
 
-    private final HashMap<K, Subject<V, V>> _sources;
+    private final BehaviorSubject<K> _faults;
 
     private class OnSubscribeAttach implements Observable.OnSubscribe<V>
     {
         private final AtomicBoolean _isFirstFault = new AtomicBoolean(true);
         private final K _key;
-        private volatile Observable<V> _valueObservable;
+        private volatile Subject<V, V> _valueObservable;
 
         OnSubscribeAttach(K key)
         {
@@ -66,12 +69,13 @@ public class SubjectMap<K, V>
                 Thread.yield();
             }
 
-            _valueObservable.subscribe(subscriber);
+            final Subscription subscription = _valueObservable.subscribe(subscriber);
 
             subscriber.add(BooleanSubscription.create(new Action0() {
                 @Override
                 public void call()
                 {
+                    subscription.unsubscribe();
                     detachSource(_key);
                 }
             }));
@@ -90,17 +94,21 @@ public class SubjectMap<K, V>
 
         _weakCache = new HashMap<>();
         _cache = new HashMap<>();
+        _faults = BehaviorSubject.create();
 
-        _sources = new HashMap<>();
+        _weakSources = new HashMap<>();
     }
 
-    private BehaviorSubject<K> _faults = BehaviorSubject.create();
-
-    private Observable<V> attachSource(K key)
+    private Subject<V, V> attachSource(K key)
     {
         _writeLock.lock();
         try {
-            BehaviorSubject<V> value = BehaviorSubject.create();
+            // if our source is being attached, we expect that all existing sources have been
+            // cleaned up properly. If not, this is a serious issue
+            assert(!_weakSources.containsKey(key));
+
+            Subject<V, V> value = BehaviorSubject.create();
+
             WeakReference<Observable<V>> weakConnector = _weakCache.get(key);
 
             // if an observable is being attached then it must have been added to the weak cache
@@ -114,7 +122,7 @@ public class SubjectMap<K, V>
 
             // strongly retain the observable and add the subject so future next calls will be
             // piped through the subject
-            _sources.put(key, value);
+            _weakSources.put(key, new WeakReference<>(value));
             _cache.put(key, connector);
 
             return value;
@@ -129,8 +137,6 @@ public class SubjectMap<K, V>
         _writeLock.lock();
         try {
             _cache.remove(key);
-            _weakCache.remove(key);
-            _sources.remove(key);
         }
         finally {
             _writeLock.unlock();
@@ -145,8 +151,10 @@ public class SubjectMap<K, V>
 
         try {
             // if we have a subject, we will emit the new value on the subject
-            if (_sources.containsKey(key)) {
-                subject = _sources.get(key);
+            if (_weakSources.containsKey(key)) {
+                WeakReference<Subject<V, V>> weakSource = _weakSources.get(key);
+
+                subject = weakSource.get();
             }
         }
         finally {
@@ -255,6 +263,11 @@ public class SubjectMap<K, V>
                     if (observable != null) {
                         // we found a hit this time around, return the hit
                         return observable;
+                    }
+                    else {
+                        // the target of the weak source should have already been cleared by the
+                        // garbage collector since the source is retained by the cached observable
+                        _weakSources.remove(key);
                     }
                 }
 

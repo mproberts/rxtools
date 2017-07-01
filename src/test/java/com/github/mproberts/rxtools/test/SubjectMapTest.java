@@ -14,6 +14,7 @@ import rx.subscriptions.CompositeSubscription;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.*;
@@ -114,6 +115,68 @@ public class SubjectMapTest
     }
 
     @Test
+    public void testBattlingSubscribers1() throws InterruptedException
+    {
+        TestSubscriber<Integer> testSubscriber1 = new TestSubscriber<>();
+        TestSubscriber<Integer> testSubscriber2 = new TestSubscriber<>();
+
+        Observable<Integer> value1 = source.get("hello");
+        Subscription s1 = value1.subscribe(testSubscriber1);
+
+        source.onNext("hello", 3);
+
+        s1.unsubscribe();
+
+        testSubscriber1.assertValues(3);
+
+        Observable<Integer> value2 = source.get("hello");
+        Subscription s2 = value2.subscribe(testSubscriber2);
+        Subscription s3 = value1.subscribe(testSubscriber1);
+
+        source.onNext("hello", 4);
+
+        s2.unsubscribe();
+        s3.unsubscribe();
+
+        testSubscriber2.assertValues(3, 4);
+    }
+
+    @Test
+    public void testBattlingSubscribers() throws InterruptedException
+    {
+        // setup
+        AtomicInteger counter = new AtomicInteger(0);
+        Subscription faultSubscription = source.faults()
+                .subscribe(new IncrementingFaultSatisfier<>(source, counter));
+
+        Observable<Integer> retainedObservable = source.get("hello");
+        TestSubscriber<Integer> testSubscriber1 = new TestSubscriber<>();
+        TestSubscriber<Integer> testSubscriber2 = new TestSubscriber<>();
+
+        Subscription s1 = retainedObservable.subscribe(testSubscriber1);
+        Subscription s2;
+
+        testSubscriber1.assertValues(1);
+
+        s1.unsubscribe();
+
+        testSubscriber1.assertValues(1);
+
+        Observable<Integer> retainedObservable2 = source.get("hello");
+
+        s1 = retainedObservable.subscribe(testSubscriber1);
+
+        testSubscriber1.assertValues(1);
+
+        s2 = retainedObservable.subscribe(testSubscriber2);
+
+        testSubscriber1.assertValues(1);
+
+        s1.unsubscribe();
+        s2.unsubscribe();
+    }
+
+    @Test
     public void testQueryAndUpdate()
     {
         // setup
@@ -208,14 +271,20 @@ public class SubjectMapTest
     @Test
     public void testThrashSubscriptions() throws InterruptedException, ExecutionException
     {
+        final AtomicInteger globalCounter = new AtomicInteger(0);
         final int subscriberCount = 50;
         ExecutorService executorService = Executors.newWorkStealingPool(subscriberCount);
 
         for (int j = 0; j < 10; ++j) {
+            System.gc();
+
             final AtomicInteger counter = new AtomicInteger(0);
             final Observable<Integer> valueObservable = source.get("test");
 
-            Callable<Subscription> queryCallable = new Callable<Subscription>() {
+            final Callable<Subscription> queryCallable = new Callable<Subscription>() {
+
+                final int index = globalCounter.incrementAndGet();
+
                 @Override
                 public Subscription call() throws Exception
                 {
@@ -235,9 +304,10 @@ public class SubjectMapTest
             }
 
             List<Future<Subscription>> futures = executorService.invokeAll(callables);
+            List<Subscription> subscriptions = new ArrayList<>();
 
             for (int i = 0; i < subscriberCount; ++i) {
-                futures.get(i).get();
+                subscriptions.add(futures.get(i).get());
             }
 
             source.onNext("test", 1);
@@ -245,7 +315,7 @@ public class SubjectMapTest
             assertEquals(subscriberCount, counter.get());
 
             for (int i = 0; i < subscriberCount; ++i) {
-                Subscription subscription = futures.get(i).get();
+                Subscription subscription = subscriptions.get(i);
 
                 subscription.unsubscribe();
             }
@@ -259,6 +329,8 @@ public class SubjectMapTest
         ExecutorService executorService = Executors.newWorkStealingPool(subscriberCount);
 
         for (int j = 0; j < 10; ++j) {
+            System.gc();
+
             final AtomicInteger counter = new AtomicInteger(0);
 
             Callable<Observable<Integer>> queryCallable = new Callable<Observable<Integer>>() {
@@ -322,6 +394,8 @@ public class SubjectMapTest
         // send error to 2 already bound subscribers
         RuntimeException error = new RuntimeException("whoops");
         source.onError("hello", error);
+
+        System.gc();
 
         subscribe(source.get("hello"), testSubscriber3);
 
