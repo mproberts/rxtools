@@ -129,7 +129,9 @@ class BaseObservableList<T> implements ObservableList<T>
                             public void call()
                             {
                                 if (_previousList != null) {
-                                    updateEmitter.onNext(new Update<>(new ArrayList<>(_previousList), Collections.singletonList(Change.reloaded())));
+                                    updateEmitter.onNext(
+                                            new Update<>(new ArrayList<>(_previousList),
+                                            Collections.singletonList(Change.reloaded())));
                                 }
 
                                 updateEmitter.onCompleted();
