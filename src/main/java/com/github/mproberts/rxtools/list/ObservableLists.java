@@ -144,9 +144,9 @@ public final class ObservableLists
      * @param <T> The type of elements
      * @return A new ObservableList
      */
-    public static <T> ObservableList<T> collapseVisibility(ObservableList<VisibilityState<T>> list)
+    public static <T, S extends ObservableList<? extends VisibilityState<T>>> ObservableList<T> collapseVisibility(S list)
     {
-        return new VisibilityStateObservableList<>(list);
+        return new VisibilityStateObservableList<>((ObservableList<VisibilityState<T>>) list);
     }
 
     /**

@@ -6,7 +6,6 @@ import rx.Subscription;
 import rx.functions.Action1;
 import rx.functions.Func1;
 import rx.internal.operators.OnSubscribeCreate;
-import rx.subscriptions.CompositeSubscription;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -18,7 +17,6 @@ class ConcatObservableList extends BaseObservableList
     private final List<ListSubscription> _subscriptions = new ArrayList<>();
 
     private final ObservableList<ObservableList<?>> _lists;
-    private final CompositeSubscription _subscription = new CompositeSubscription();
     private Observable<Update> _updateObservable;
 
     private class ListSubscription implements Action1<Update>
@@ -159,7 +157,6 @@ class ConcatObservableList extends BaseObservableList
                             break;
                         }
                         case Moved: {
-
                             ListSubscription subscription = _subscriptions.remove(change.from);
 
                             _subscriptions.add(change.to, subscription);

@@ -12,14 +12,14 @@ import java.util.concurrent.TimeUnit;
 class BufferedObservableList<T> implements ObservableList<T>
 {
     private final ObservableList<T> _list;
-    private final long _timespan;
+    private final long _timeSpan;
     private final TimeUnit _timeUnit;
     private final Scheduler _scheduler;
 
-    public BufferedObservableList(ObservableList<T> list, long timespan, TimeUnit timeUnit, Scheduler scheduler)
+    public BufferedObservableList(ObservableList<T> list, long timeSpan, TimeUnit timeUnit, Scheduler scheduler)
     {
         _list = list;
-        _timespan = timespan;
+        _timeSpan = timeSpan;
         _timeUnit = timeUnit;
         _scheduler = scheduler;
     }
@@ -28,7 +28,7 @@ class BufferedObservableList<T> implements ObservableList<T>
     public Observable<Update<T>> updates()
     {
         return _list.updates()
-                .buffer(_timespan, _timeUnit, _scheduler)
+                .buffer(_timeSpan, _timeUnit, _scheduler)
                 .map(new Func1<List<Update<T>>, Update<T>>() {
                     @Override
                     public Update<T> call(List<Update<T>> updates) {
