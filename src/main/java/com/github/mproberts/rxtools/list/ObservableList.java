@@ -1,6 +1,6 @@
 package com.github.mproberts.rxtools.list;
 
-import rx.Observable;
+import io.reactivex.Flowable;
 
 import java.util.Collections;
 import java.util.List;
@@ -211,7 +211,7 @@ public interface ObservableList<T>
      * A stream of updates that represent all changes to the underlying list. When first subscribed,
      * the list will emit a reload event immediately, if there is an existing state for the list
      * already available.
-     * @return An Observable bound to the update stream of the list
+     * @return An Flowable bound to the update stream of the list
      */
-    Observable<Update<T>> updates();
+    Flowable<Update<T>> updates();
 }

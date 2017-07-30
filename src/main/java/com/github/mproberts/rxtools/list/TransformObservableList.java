@@ -2,29 +2,29 @@ package com.github.mproberts.rxtools.list;
 
 import java.util.List;
 
-import rx.Observable;
-import rx.functions.Func1;
+import io.reactivex.Flowable;
+import io.reactivex.functions.Function;
 
 class TransformObservableList<K, V> implements ObservableList<V>
 {
     private final ObservableList<K> _list;
-    private final Func1<List<K>, List<V>> _mappingMethod;
+    private final Function<List<K>, List<V>> _mappingMethod;
 
-    TransformObservableList(ObservableList<K> list, Func1<List<K>, List<V>> mapping)
+    TransformObservableList(ObservableList<K> list, Function<List<K>, List<V>> mapping)
     {
         _list = list;
         _mappingMethod = mapping;
     }
 
     @Override
-    public Observable<Update<V>> updates()
+    public Flowable<Update<V>> updates()
     {
-        return _list.updates().map(new Func1<Update<K>, Update<V>>() {
+        return _list.updates().map(new Function<Update<K>, Update<V>>() {
 
             @Override
-            public Update<V> call(Update<K> key)
+            public Update<V> apply(Update<K> key) throws Exception
             {
-                return new Update<>(_mappingMethod.call(key.list), key.changes);
+                return new Update<>(_mappingMethod.apply(key.list), key.changes);
             }
         });
     }

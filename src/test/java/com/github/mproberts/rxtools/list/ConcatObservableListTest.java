@@ -1,7 +1,7 @@
 package com.github.mproberts.rxtools.list;
 
+import io.reactivex.subscribers.TestSubscriber;
 import org.junit.Test;
-import rx.observers.TestSubscriber;
 
 import java.util.Arrays;
 import java.util.List;
@@ -21,7 +21,7 @@ public class ConcatObservableListTest
 
         testSubscriber.assertValueCount(1);
 
-        List<ObservableList.Update> onNextEvents = testSubscriber.getOnNextEvents();
+        List<ObservableList.Update> onNextEvents = testSubscriber.values();
 
         ObservableList.Update update = onNextEvents.get(0);
 
@@ -57,7 +57,7 @@ public class ConcatObservableListTest
 
         testSubscriber.assertValueCount(3);
 
-        List<ObservableList.Update> onNextEvents = testSubscriber.getOnNextEvents();
+        List<ObservableList.Update> onNextEvents = testSubscriber.values();
 
         ObservableList.Update reload = onNextEvents.get(0);
         ObservableList.Update insert9 = onNextEvents.get(1);
@@ -101,7 +101,7 @@ public class ConcatObservableListTest
 
         testSubscriber.assertValueCount(3);
 
-        List<ObservableList.Update> onNextEvents = testSubscriber.getOnNextEvents();
+        List<ObservableList.Update> onNextEvents = testSubscriber.values();
 
         ObservableList.Update reload = onNextEvents.get(0);
         ObservableList.Update insert9 = onNextEvents.get(1);
@@ -141,7 +141,7 @@ public class ConcatObservableListTest
 
         testSubscriber.assertValueCount(3);
 
-        List<ObservableList.Update> onNextEvents = testSubscriber.getOnNextEvents();
+        List<ObservableList.Update> onNextEvents = testSubscriber.values();
 
         ObservableList.Update reload = onNextEvents.get(0);
         ObservableList.Update remove3 = onNextEvents.get(1);
@@ -183,7 +183,7 @@ public class ConcatObservableListTest
 
         testSubscriber.assertValueCount(2);
 
-        List<ObservableList.Update> onNextEvents = testSubscriber.getOnNextEvents();
+        List<ObservableList.Update> onNextEvents = testSubscriber.values();
 
         ObservableList.Update reload = onNextEvents.get(0);
         ObservableList.Update move3 = onNextEvents.get(1);
@@ -227,7 +227,7 @@ public class ConcatObservableListTest
         combinedList.add(1, d);
         combinedList.remove(b);
 
-        List<ObservableList.Update> onNextEvents = testSubscriber.getOnNextEvents();
+        List<ObservableList.Update> onNextEvents = testSubscriber.values();
 
         testSubscriber.assertValueCount(3);
 
@@ -280,7 +280,7 @@ public class ConcatObservableListTest
         c.add(7);
         combinedList.move(2, 1);
 
-        List<ObservableList.Update> onNextEvents = testSubscriber.getOnNextEvents();
+        List<ObservableList.Update> onNextEvents = testSubscriber.values();
 
         testSubscriber.assertValueCount(4);
 
@@ -338,13 +338,13 @@ public class ConcatObservableListTest
 
         list.updates().subscribe(testSubscriber3);
 
-        testSubscriber1.unsubscribe();
+        testSubscriber1.dispose();
 
         b.add(7);
 
-        List<ObservableList.Update> onNextEvents1 = testSubscriber1.getOnNextEvents();
-        List<ObservableList.Update> onNextEvents2 = testSubscriber2.getOnNextEvents();
-        List<ObservableList.Update> onNextEvents3 = testSubscriber3.getOnNextEvents();
+        List<ObservableList.Update> onNextEvents1 = testSubscriber1.values();
+        List<ObservableList.Update> onNextEvents2 = testSubscriber2.values();
+        List<ObservableList.Update> onNextEvents3 = testSubscriber3.values();
 
         // test subscriber 1
         testSubscriber1.assertValueCount(3);
@@ -412,13 +412,13 @@ public class ConcatObservableListTest
         b.add(5);
         b.add(6);
 
-        testSubscriber1.unsubscribe();
+        testSubscriber1.dispose();
         list.updates().subscribe(testSubscriber2);
 
         b.add(7);
 
-        List<ObservableList.Update> onNextEvents1 = testSubscriber1.getOnNextEvents();
-        List<ObservableList.Update> onNextEvents2 = testSubscriber2.getOnNextEvents();
+        List<ObservableList.Update> onNextEvents1 = testSubscriber1.values();
+        List<ObservableList.Update> onNextEvents2 = testSubscriber2.values();
 
         // test subscriber 1
         testSubscriber1.assertValueCount(3);
@@ -474,7 +474,7 @@ public class ConcatObservableListTest
 
         testSubscriber.assertValueCount(1);
 
-        List<ObservableList.Update> onNextEvents = testSubscriber.getOnNextEvents();
+        List<ObservableList.Update> onNextEvents = testSubscriber.values();
 
         ObservableList.Update reload = onNextEvents.get(0);
 

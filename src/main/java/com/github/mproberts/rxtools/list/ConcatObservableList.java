@@ -1,11 +1,10 @@
 package com.github.mproberts.rxtools.list;
 
-import rx.Emitter;
-import rx.Observable;
-import rx.Subscription;
-import rx.functions.Action1;
-import rx.functions.Func1;
-import rx.internal.operators.OnSubscribeCreate;
+import io.reactivex.*;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
+import org.reactivestreams.Subscription;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -17,13 +16,13 @@ class ConcatObservableList extends BaseObservableList
     private final List<ListSubscription> _subscriptions = new ArrayList<>();
 
     private final ObservableList<ObservableList<?>> _lists;
-    private Observable<Update> _updateObservable;
+    private Flowable<Update> _updateObservable;
 
-    private class ListSubscription implements Action1<Update>
+    private class ListSubscription implements Consumer<Update>
     {
         private final ObservableList<?> _observableList;
         private final List<Change> _initialChanges;
-        private Subscription _subscription;
+        private Disposable _subscription;
         private AtomicBoolean _alreadyRunning = new AtomicBoolean(true);
         private List<?> _latest;
         private int _index;
@@ -52,11 +51,11 @@ class ConcatObservableList extends BaseObservableList
 
         public void unsubscribe()
         {
-            _subscription.unsubscribe();
+            _subscription.dispose();
         }
 
         @Override
-        public void call(final Update update)
+        public void accept(final Update update)
         {
             _latest = update.list;
 
@@ -65,9 +64,9 @@ class ConcatObservableList extends BaseObservableList
                 _initialChanges.addAll(update.changes);
             }
             else {
-                applyUpdate(new Func1<List, Update>() {
+                applyUpdate(new Function<List, Update>() {
                     @Override
-                    public Update call(List list)
+                    public Update apply(List list)
                     {
                         int offset = 0;
 
@@ -90,12 +89,12 @@ class ConcatObservableList extends BaseObservableList
             return _latest;
         }
     }
-    class ConcatUpdateSubscription implements Action1<Update<ObservableList<?>>>, Subscription
+    class ConcatUpdateSubscription implements Consumer<Update<ObservableList<?>>>, Disposable
     {
         final AtomicBoolean _isFirst = new AtomicBoolean(true);
         private Emitter<Update> _firstEmitter;
         private AtomicInteger _refCount = new AtomicInteger(0);
-        private Subscription _subscription;
+        private Disposable _subscription;
 
         ConcatUpdateSubscription(Emitter<Update> firstEmitter)
         {
@@ -103,7 +102,7 @@ class ConcatObservableList extends BaseObservableList
         }
 
         @Override
-        public void call(final Update<ObservableList<?>> listsUpdate)
+        public void accept(final Update<ObservableList<?>> listsUpdate)
         {
             boolean isFirstEmission = _isFirst.getAndSet(false);
 
@@ -223,7 +222,7 @@ class ConcatObservableList extends BaseObservableList
         }
 
         @Override
-        public void unsubscribe()
+        public void dispose()
         {
             int subscriptions = _refCount.decrementAndGet();
 
@@ -235,17 +234,17 @@ class ConcatObservableList extends BaseObservableList
                 _subscriptions.clear();
 
                 _updateObservable = null;
-                _subscription.unsubscribe();
+                _subscription.dispose();
             }
         }
 
         @Override
-        public boolean isUnsubscribed()
+        public boolean isDisposed()
         {
             return _refCount.get() == 0;
         }
 
-        public void setSubscription(Subscription subscription)
+        public void setSubscription(Disposable subscription)
         {
             _subscription = subscription;
         }
@@ -256,17 +255,17 @@ class ConcatObservableList extends BaseObservableList
         }
     }
 
-    class ConcatOnSubscribeAction implements Action1<Emitter<Update>>
+    class ConcatOnSubscribeAction implements FlowableOnSubscribe<Update>
     {
         ConcatUpdateSubscription _subscriber;
 
         @Override
-        public void call(final Emitter<Update> updateEmitter)
+        public void subscribe(final FlowableEmitter<Update> updateEmitter)
         {
             if (_subscriber == null) {
                 _subscriber = new ConcatUpdateSubscription(updateEmitter);
 
-                final Subscription subscribe = _lists.updates()
+                final Disposable subscribe = _lists.updates()
                         .subscribe(_subscriber);
 
                 _subscriber.setSubscription(subscribe);
@@ -276,17 +275,17 @@ class ConcatObservableList extends BaseObservableList
 
             final AtomicBoolean isUnsubscribed = new AtomicBoolean();
 
-            updateEmitter.setSubscription(new Subscription() {
+            updateEmitter.setDisposable(new Disposable() {
                 @Override
-                public void unsubscribe()
+                public void dispose()
                 {
-                    _subscriber.unsubscribe();
+                    _subscriber.dispose();
 
                     isUnsubscribed.set(true);
                 }
 
                 @Override
-                public boolean isUnsubscribed()
+                public boolean isDisposed()
                 {
                     return isUnsubscribed.get();
                 }
@@ -294,15 +293,12 @@ class ConcatObservableList extends BaseObservableList
         }
     }
 
-    public Observable<Update> createUpdater()
+    public Flowable<Update> createUpdater()
     {
-        if (_updateObservable != null) {
-            return _updateObservable;
+        if (_updateObservable == null) {
+            _updateObservable = Flowable.create(new ConcatOnSubscribeAction(), BackpressureStrategy.LATEST);
         }
 
-        _updateObservable = Observable.unsafeCreate(new OnSubscribeCreate<>(
-                        new ConcatOnSubscribeAction(),
-                        Emitter.BackpressureMode.LATEST));
 
         return _updateObservable;
     }
@@ -371,7 +367,7 @@ class ConcatObservableList extends BaseObservableList
     }
 
     @Override
-    public Observable updates()
+    public Flowable updates()
     {
         return super.updates().mergeWith(createUpdater());
     }

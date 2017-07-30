@@ -1,12 +1,9 @@
 package com.github.mproberts.rxtools.list;
 
-import rx.Emitter;
-import rx.Observable;
-import rx.functions.Action0;
-import rx.functions.Action1;
-import rx.functions.Func1;
-import rx.internal.operators.OnSubscribeCreate;
-import rx.subjects.PublishSubject;
+import io.reactivex.*;
+import io.reactivex.functions.Action;
+import io.reactivex.functions.Function;
+import io.reactivex.subjects.PublishSubject;
 
 import java.util.Collections;
 import java.util.List;
@@ -54,11 +51,11 @@ class BaseObservableList<T> implements ObservableList<T>
         return oldPreviousList;
     }
 
-    final void applyUpdate(final Func1<List<T>, Update<T>> change)
+    final void applyUpdate(final Function<List<T>, Update<T>> change)
     {
-        onNext(new Action0() {
+        onNext(new Action() {
             @Override
-            public void call()
+            public void run()
             {
                 Update<T> update = null;
                 Exception updateError = null;
@@ -66,7 +63,7 @@ class BaseObservableList<T> implements ObservableList<T>
                 List<T> currentList = _previousList;
 
                 try {
-                    update = change.call(currentList);
+                    update = change.apply(currentList);
 
                     if (update != null) {
                         if (_previousList == null) {
@@ -90,7 +87,7 @@ class BaseObservableList<T> implements ObservableList<T>
         });
     }
 
-    private void onNext(Action0 doNotify)
+    private void onNext(Action doNotify)
     {
         boolean applyingUpdate = _isApplyingUpdate.get();
 
@@ -105,7 +102,12 @@ class BaseObservableList<T> implements ObservableList<T>
             }
         }
 
-        doNotify.call();
+        try {
+            doNotify.run();
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
         if (!applyingUpdate) {
             // allow the next update to take hold
@@ -116,28 +118,28 @@ class BaseObservableList<T> implements ObservableList<T>
     }
 
     @Override
-    public Observable<Update<T>> updates()
+    public Flowable<Update<T>> updates()
     {
         // starts the observable with whatever the present state is
         return _subject
-                .startWith(Observable.unsafeCreate(new OnSubscribeCreate<>(new Action1<Emitter<Update<T>>>() {
+                .startWith(new ObservableSource<Update<T>>() {
                     @Override
-                    public void call(final Emitter<Update<T>> updateEmitter)
-                    {
-                        onNext(new Action0() {
+                    public void subscribe(final Observer<? super Update<T>> observer) {
+                        onNext(new Action() {
                             @Override
-                            public void call()
+                            public void run()
                             {
                                 if (_previousList != null) {
-                                    updateEmitter.onNext(
+                                    observer.onNext(
                                             new Update<>(new ArrayList<>(_previousList),
-                                            Collections.singletonList(Change.reloaded())));
+                                                    Collections.singletonList(Change.reloaded())));
                                 }
 
-                                updateEmitter.onCompleted();
+                                observer.onComplete();
                             }
                         });
                     }
-                }, Emitter.BackpressureMode.LATEST)));
+                })
+                .toFlowable(BackpressureStrategy.BUFFER);
     }
 }

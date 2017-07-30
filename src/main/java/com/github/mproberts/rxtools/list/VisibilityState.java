@@ -1,6 +1,6 @@
 package com.github.mproberts.rxtools.list;
 
-import rx.Observable;
+import io.reactivex.Flowable;
 
 /**
  * Defines a base interface for objects capable of appearing and disappearing from
@@ -20,5 +20,5 @@ public interface VisibilityState<T>
      * into the containing ObservableList
      * @return An observable of visibility state
      */
-    Observable<Boolean> isVisible();
+    Flowable<Boolean> isVisible();
 }

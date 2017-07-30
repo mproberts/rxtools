@@ -1,10 +1,10 @@
 package com.github.mproberts.rxtools.list;
 
 import com.github.mproberts.rxtools.SubjectMap;
+import io.reactivex.Flowable;
+import io.reactivex.functions.Function;
+import io.reactivex.subscribers.TestSubscriber;
 import org.junit.Test;
-import rx.Observable;
-import rx.functions.Func1;
-import rx.observers.TestSubscriber;
 
 import java.util.Arrays;
 import java.util.List;
@@ -19,9 +19,9 @@ public class TransformObservableListTest
         TestSubscriber<ObservableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
 
         SimpleObservableList<Integer> list = new SimpleObservableList<>(Arrays.asList(1, 2, 3));
-        ObservableList<Integer> transformedList = ObservableLists.transform(list, new Func1<Integer, Integer>() {
+        ObservableList<Integer> transformedList = ObservableLists.transform(list, new Function<Integer, Integer>() {
             @Override
-            public Integer call(Integer integer) {
+            public Integer apply(Integer integer) {
                 return integer + 12;
             }
         });
@@ -30,7 +30,7 @@ public class TransformObservableListTest
 
         testSubscriber.assertValueCount(1);
 
-        List<ObservableList.Update<Integer>> onNextEvents = testSubscriber.getOnNextEvents();
+        List<ObservableList.Update<Integer>> onNextEvents = testSubscriber.values();
 
         assertEquals(Arrays.asList(ObservableList.Change.reloaded()), onNextEvents.get(0).changes);
         assertEquals(Arrays.asList(13, 14, 15), onNextEvents.get(0).list);
@@ -39,7 +39,7 @@ public class TransformObservableListTest
     @Test
     public void testSubjectMapTransform()
     {
-        TestSubscriber<ObservableList.Update<Observable<String>>> testSubscriber = new TestSubscriber<>();
+        TestSubscriber<ObservableList.Update<Flowable<String>>> testSubscriber = new TestSubscriber<>();
 
         TestSubscriber<String> subscriber0 = new TestSubscriber<>();
         TestSubscriber<String> subscriber1 = new TestSubscriber<>();
@@ -47,18 +47,18 @@ public class TransformObservableListTest
 
         SubjectMap<Integer, String> subjectMap = new SubjectMap<>();
         SimpleObservableList<Integer> list = new SimpleObservableList<>(Arrays.asList(1, 2, 3));
-        ObservableList<Observable<String>> transformedList = ObservableLists.transform(list, subjectMap);
+        ObservableList<Flowable<String>> transformedList = ObservableLists.transform(list, subjectMap);
 
         transformedList.updates().subscribe(testSubscriber);
 
         testSubscriber.assertValueCount(1);
 
-        List<ObservableList.Update<Observable<String>>> onNextEvents = testSubscriber.getOnNextEvents();
-        ObservableList.Update<Observable<String>> update = onNextEvents.get(0);
+        List<ObservableList.Update<Flowable<String>>> onNextEvents = testSubscriber.values();
+        ObservableList.Update<Flowable<String>> update = onNextEvents.get(0);
 
-        Observable<String> value0 = update.list.get(0);
-        Observable<String> value1 = update.list.get(1);
-        Observable<String> value2 = update.list.get(2);
+        Flowable<String> value0 = update.list.get(0);
+        Flowable<String> value1 = update.list.get(1);
+        Flowable<String> value2 = update.list.get(2);
 
         value0.subscribe(subscriber0);
         value1.subscribe(subscriber1);
@@ -69,8 +69,8 @@ public class TransformObservableListTest
         subjectMap.onNext(3, "C");
 
         assertEquals(Arrays.asList(ObservableList.Change.reloaded()), update.changes);
-        assertEquals("A", subscriber0.getOnNextEvents().get(0));
-        assertEquals("B", subscriber1.getOnNextEvents().get(0));
-        assertEquals("C", subscriber2.getOnNextEvents().get(0));
+        assertEquals("A", subscriber0.values().get(0));
+        assertEquals("B", subscriber1.values().get(0));
+        assertEquals("C", subscriber2.values().get(0));
     }
 }

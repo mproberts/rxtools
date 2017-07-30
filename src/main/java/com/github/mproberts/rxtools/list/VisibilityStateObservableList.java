@@ -1,9 +1,9 @@
 package com.github.mproberts.rxtools.list;
 
-import rx.Observable;
-import rx.Subscription;
-import rx.functions.Action1;
-import rx.functions.Func1;
+import io.reactivex.Flowable;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,7 +14,7 @@ class VisibilityStateObservableList<T> extends BaseObservableList<T>
 {
     private final ObservableList<VisibilityState<T>> _list;
     private final List<ItemSubscription> _listVisibility;
-    private Subscription _subscription;
+    private Disposable _subscription;
 
     VisibilityStateObservableList(ObservableList<VisibilityState<T>> list)
     {
@@ -22,123 +22,147 @@ class VisibilityStateObservableList<T> extends BaseObservableList<T>
         _listVisibility = new ArrayList<>();
     }
 
-    private void addItem(final int index, List<VisibilityState<T>> list) {
+    private void addItem(final int index, List<VisibilityState<T>> list)
+    {
         final VisibilityState<T> insertedItem = list.get(index);
 
         ItemSubscription itemSubscription = new ItemSubscription(index, insertedItem);
 
         _listVisibility.add(index, itemSubscription);
 
-        Subscription subscribe = insertedItem.isVisible().subscribe(itemSubscription);
+        Disposable subscribe = insertedItem.isVisible().subscribe(itemSubscription);
 
         itemSubscription.setSubscription(subscribe);
     }
 
     @Override
-    public Observable<Update<T>> updates() {
+    public Flowable<Update<T>> updates()
+    {
         if (_subscription == null) {
-            Action1<Update<VisibilityState<T>>> action1 = new Action1<Update<VisibilityState<T>>>() {
+            _subscription = _list.updates().subscribe(new Consumer<Update<VisibilityState<T>>>() {
                 @Override
-                public void call(final Update<VisibilityState<T>> update) {
+                public void accept(final Update<VisibilityState<T>> update) {
                     for (final Change change : update.changes) {
                         switch (change.type) {
                             case Moved:
-                                ItemSubscription moved = _listVisibility.get(change.from);
-                                ItemSubscription target = _listVisibility.get(change.to);
-                                final int j = moved._currentVirtualIndex.get();
-                                final int jj = target._currentVirtualIndex.get();
-                                final int ci = moved._currentIndex.get();
-                                final int cii = target._currentIndex.get();
+                                ItemSubscription moved;
+                                final int j, jj;
 
-                                if (change.from < change.to) {
-                                    for (int i = change.from + 1; i < change.to; ++i) {
-                                        ItemSubscription itemSubscription = _listVisibility.get(i);
-                                        int currentVirtualIndex = itemSubscription._currentVirtualIndex.get();
+                                synchronized (_listVisibility) {
+                                    moved = _listVisibility.get(change.from);
+                                    ItemSubscription target = _listVisibility.get(change.to);
+                                    j = moved._currentVirtualIndex.get();
+                                    jj = target._currentVirtualIndex.get();
+                                    int ci = moved._currentIndex.get();
+                                    int cii = target._currentIndex.get();
 
-                                        itemSubscription.updateVirtualIndex(currentVirtualIndex - 1);
-                                        itemSubscription.updateIndex(i - 1);
+                                    if (change.from < change.to) {
+                                        for (int i = change.from + 1; i < change.to; ++i) {
+                                            ItemSubscription itemSubscription = _listVisibility.get(i);
+                                            int currentVirtualIndex = itemSubscription._currentVirtualIndex.get();
+
+                                            itemSubscription.updateVirtualIndex(currentVirtualIndex - 1);
+                                            itemSubscription.updateIndex(i - 1);
+                                        }
+
+                                        moved.updateVirtualIndex(jj);
+                                        moved.updateIndex(cii);
+
+                                        target.updateVirtualIndex(j);
+                                        target.updateIndex(ci);
+                                    }
+                                    else {
+                                        for (int i = change.to; i < change.from; ++i) {
+                                            ItemSubscription itemSubscription = _listVisibility.get(i);
+                                            int currentVirtualIndex = itemSubscription._currentVirtualIndex.get();
+
+                                            itemSubscription.updateVirtualIndex(currentVirtualIndex + 1);
+                                            itemSubscription.updateIndex(i + 1);
+                                        }
+
+                                        moved.updateVirtualIndex(jj);
+                                        moved.updateIndex(cii);
+
+                                        target.updateVirtualIndex(j);
+                                        target.updateIndex(ci);
                                     }
 
-                                    moved.updateVirtualIndex(jj);
-                                    moved.updateIndex(cii);
+                                    ItemSubscription movedItem = _listVisibility.remove(change.from);
 
-                                    target.updateVirtualIndex(j);
-                                    target.updateIndex(ci);
-                                }
-                                else {
-                                    for (int i = change.to; i < change.from; ++i) {
-                                        ItemSubscription itemSubscription = _listVisibility.get(i);
-                                        int currentVirtualIndex = itemSubscription._currentVirtualIndex.get();
-
-                                        itemSubscription.updateVirtualIndex(currentVirtualIndex + 1);
-                                        itemSubscription.updateIndex(i + 1);
-                                    }
-
-                                    moved.updateVirtualIndex(jj);
-                                    moved.updateIndex(cii);
-
-                                    target.updateVirtualIndex(j);
-                                    target.updateIndex(ci);
+                                    _listVisibility.add(change.to, movedItem);
                                 }
 
                                 if (moved._isVisible.get()) {
-                                    applyUpdate(new Func1<List<T>, Update<T>>() {
+                                    applyUpdate(new Function<List<T>, Update<T>>() {
                                         @Override
-                                        public Update<T> call(List<T> currentList) {
+                                        public Update<T> apply(List<T> currentList) {
                                             ArrayList<T> listToUpdate = new ArrayList<>(currentList);
 
                                             listToUpdate.add(change.to, listToUpdate.remove(change.from));
 
-                                            return new Update<T>(listToUpdate, Change.moved(j, jj));
+                                            return new Update<>(listToUpdate, Change.moved(j, jj));
                                         }
                                     });
                                 }
-
-                                ItemSubscription movedItem = _listVisibility.remove(change.from);
-
-                                _listVisibility.add(change.to, movedItem);
                                 break;
                             case Inserted:
-                                addItem(change.to, update.list);
+                                synchronized (_listVisibility) {
+                                    addItem(change.to, update.list);
 
-                                for (int i = change.to + 1, length = _listVisibility.size(); i < length; ++i) {
-                                    _listVisibility.get(i).updateIndex(i);
+                                    for (int i = change.to + 1, length = _listVisibility.size(); i < length; ++i) {
+                                        _listVisibility.get(i).updateIndex(i);
+                                    }
                                 }
                                 break;
                             case Removed:
-                                ItemSubscription removed = _listVisibility.remove(change.from);
-                                removed.unsubscribe();
+                                ItemSubscription removed;
+                                synchronized (_listVisibility) {
+                                    removed = _listVisibility.remove(change.from);
+                                }
+
+                                if (removed != null) {
+                                    removed.unsubscribe();
+                                }
                                 break;
                             case Reloaded:
-                                for (ItemSubscription itemSubscription : _listVisibility) {
+                                List<ItemSubscription> listVisibility;
+
+                                synchronized (_listVisibility) {
+                                    listVisibility = new ArrayList<>(_listVisibility);
+
+                                    _listVisibility.clear();
+                                }
+
+                                for (ItemSubscription itemSubscription : listVisibility) {
                                     itemSubscription.unsubscribe();
                                 }
 
-                                _listVisibility.clear();
-
-                                for (int i = 0, length = update.list.size(); i < length; ++i) {
-                                    addItem(i, update.list);
+                                synchronized (_listVisibility) {
+                                    for (int i = 0, length = update.list.size(); i < length; ++i) {
+                                        addItem(i, update.list);
+                                    }
                                 }
                                 break;
                         }
                     }
                 }
-            };
-            _subscription = _list.updates().subscribe(action1);
+            });
         }
 
         return super.updates();
     }
 
-    private class ItemSubscription implements Action1<Boolean> {
+    private class ItemSubscription implements Consumer<Boolean>
+    {
         private final VisibilityState<T> _insertedItem;
-        AtomicInteger _currentVirtualIndex;
-        AtomicInteger _currentIndex;
-        AtomicBoolean _isVisible;
-        private Subscription _subscription;
+        private final AtomicInteger _currentVirtualIndex;
+        private final AtomicInteger _currentIndex;
+        private final AtomicBoolean _isVisible;
+        private Disposable _subscription;
 
-        public ItemSubscription(int index, VisibilityState<T> insertedItem) {
-            this._insertedItem = insertedItem;
+        public ItemSubscription(int index, VisibilityState<T> insertedItem)
+        {
+            _insertedItem = insertedItem;
             _currentIndex = new AtomicInteger(index);
             _currentVirtualIndex = new AtomicInteger(index);
             _isVisible = new AtomicBoolean();
@@ -155,16 +179,15 @@ class VisibilityStateObservableList<T> extends BaseObservableList<T>
         }
 
         @Override
-        public void call(final Boolean updatedVisibility) {
-            if (_isVisible.get() == updatedVisibility) {
+        public void accept(final Boolean updatedVisibility)
+        {
+            if (_isVisible.getAndSet(updatedVisibility) == updatedVisibility) {
                 return;
             }
 
-            _isVisible.set(updatedVisibility);
-
-            applyUpdate(new Func1<List<T>, Update<T>>() {
+            applyUpdate(new Function<List<T>, Update<T>>() {
                 @Override
-                public Update<T> call(List<T> currentList) {
+                public Update<T> apply(List<T> currentList) {
                     ArrayList<T> listToUpdate;
 
                     if (currentList == null) {
@@ -207,13 +230,16 @@ class VisibilityStateObservableList<T> extends BaseObservableList<T>
             });
         }
 
-        public void setSubscription(Subscription subscription) {
+        public void setSubscription(Disposable subscription)
+        {
             _subscription = subscription;
         }
 
-        public void unsubscribe() {
-            _subscription.unsubscribe();
-            call(false);
+        public void unsubscribe()
+        {
+            _subscription.dispose();
+
+            accept(false);
         }
     }
 }

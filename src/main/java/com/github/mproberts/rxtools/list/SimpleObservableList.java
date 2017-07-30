@@ -1,7 +1,7 @@
 package com.github.mproberts.rxtools.list;
 
-import rx.functions.Action1;
-import rx.functions.Func1;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -10,15 +10,15 @@ import java.util.List;
 
 /**
  * A basic ObservableList implementation which behaves much like a generic List. Additions, removals,
- * and moves will be automatically applied and emitted via the updates Observable.
+ * and moves will be automatically applied and emitted via the updates Flowable.
  * @param <T> The value type of the list
  */
 public class SimpleObservableList<T> extends BaseObservableList<T>
 {
     private final Object _batchingLock = new Object();
-    private List<Func1<List<T>, Update<T>>> _batchedOperations;
+    private List<Function<List<T>, Update<T>>> _batchedOperations;
 
-    void applyOperation(final Func1<List<T>, Update<T>> operation)
+    void applyOperation(final Function<List<T>, Update<T>> operation)
     {
         synchronized (_batchingLock) {
             if (_batchedOperations != null) {
@@ -27,13 +27,13 @@ public class SimpleObservableList<T> extends BaseObservableList<T>
             }
         }
 
-        applyUpdate(new Func1<List<T>, Update<T>>() {
+        applyUpdate(new Function<List<T>, Update<T>>() {
             @Override
-            public Update<T> call(List<T> list)
+            public Update<T> apply(List<T> list) throws Exception
             {
                 list = new ArrayList<>(list);
 
-                return operation.call(list);
+                return operation.apply(list);
             }
         });
     }
@@ -60,26 +60,26 @@ public class SimpleObservableList<T> extends BaseObservableList<T>
      * as well a only emitting a single immutable list.
      * @param changes An action to be called which will apply operations to the list
      */
-    public void batch(final Action1<SimpleObservableList<T>> changes)
+    public void batch(final Consumer<SimpleObservableList<T>> changes)
     {
         final SimpleObservableList<T> target = this;
 
-        applyUpdate(new Func1<List<T>, Update<T>>() {
+        applyUpdate(new Function<List<T>, Update<T>>() {
             @Override
-            public Update<T> call(List<T> list)
+            public Update<T> apply(List<T> list) throws Exception
             {
-                List<Func1<List<T>, Update<T>>> batchedOperations;
+                List<Function<List<T>, Update<T>>> batchedOperations;
 
                 synchronized (_batchingLock) {
                     _batchedOperations = new ArrayList<>();
 
-                    changes.call(target);
+                    changes.accept(target);
 
                     List<T> resultList = new ArrayList<>(list);
                     List<Change> allChanges = new ArrayList<>();
 
-                    for (Func1<List<T>, Update<T>> operation : _batchedOperations) {
-                        Update<T> update = operation.call(resultList);
+                    for (Function<List<T>, Update<T>> operation : _batchedOperations) {
+                        Update<T> update = operation.apply(resultList);
 
                         allChanges.addAll(update.changes);
                         resultList = update.list;
@@ -99,9 +99,9 @@ public class SimpleObservableList<T> extends BaseObservableList<T>
      */
     public void add(final T value)
     {
-        applyOperation(new Func1<List<T>, Update<T>>() {
+        applyOperation(new Function<List<T>, Update<T>>() {
             @Override
-            public Update<T> call(List<T> list)
+            public Update<T> apply(List<T> list)
             {
                 int size = list.size();
 
@@ -118,9 +118,9 @@ public class SimpleObservableList<T> extends BaseObservableList<T>
      */
     public void add(final int index, final T value)
     {
-        applyOperation(new Func1<List<T>, Update<T>>() {
+        applyOperation(new Function<List<T>, Update<T>>() {
             @Override
-            public Update<T> call(List<T> list)
+            public Update<T> apply(List<T> list)
             {
                 int position = Math.min(list.size(), index);
 
@@ -137,9 +137,9 @@ public class SimpleObservableList<T> extends BaseObservableList<T>
      */
     public void addAll(final Collection<? extends T> values)
     {
-        applyOperation(new Func1<List<T>, Update<T>>() {
+        applyOperation(new Function<List<T>, Update<T>>() {
             @Override
-            public Update<T> call(List<T> list)
+            public Update<T> apply(List<T> list)
             {
                 int size = list.size();
 
@@ -163,9 +163,9 @@ public class SimpleObservableList<T> extends BaseObservableList<T>
      */
     public void move(final int fromIndex, final int toIndex)
     {
-        applyOperation(new Func1<List<T>, Update<T>>() {
+        applyOperation(new Function<List<T>, Update<T>>() {
             @Override
-            public Update<T> call(List<T> list)
+            public Update<T> apply(List<T> list)
             {
                 int toPosition = Math.min(list.size() - 1, toIndex);
 
@@ -187,9 +187,9 @@ public class SimpleObservableList<T> extends BaseObservableList<T>
      */
     public void remove(final int index)
     {
-        applyOperation(new Func1<List<T>, Update<T>>() {
+        applyOperation(new Function<List<T>, Update<T>>() {
             @Override
-            public Update<T> call(List<T> list)
+            public Update<T> apply(List<T> list)
             {
                 list.remove(index);
 
@@ -204,9 +204,9 @@ public class SimpleObservableList<T> extends BaseObservableList<T>
      */
     public void remove(final T value)
     {
-        applyOperation(new Func1<List<T>, Update<T>>() {
+        applyOperation(new Function<List<T>, Update<T>>() {
             @Override
-            public Update<T> call(List<T> list)
+            public Update<T> apply(List<T> list)
             {
                 int index = list.indexOf(value);
 

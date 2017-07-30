@@ -1,18 +1,23 @@
 package com.github.mproberts.rxtools;
 
-import rx.Observable;
-import rx.Subscriber;
-import rx.Subscription;
-import rx.functions.Action0;
-import rx.functions.Action1;
-import rx.subjects.BehaviorSubject;
-import rx.subjects.Subject;
-import rx.subscriptions.BooleanSubscription;
+import io.reactivex.*;
+import io.reactivex.Flowable;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Action;
+import io.reactivex.functions.Consumer;
+import io.reactivex.processors.BehaviorProcessor;
+import io.reactivex.subjects.BehaviorSubject;
+import io.reactivex.subjects.Subject;
+import io.reactivex.subscribers.DisposableSubscriber;
+import org.reactivestreams.Processor;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
 
 import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -30,9 +35,9 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 public class SubjectMap<K, V>
 {
-    private static final Action0 EMPTY_ACTION = new Action0() {
+    private static final Action EMPTY_ACTION = new Action() {
         @Override
-        public void call()
+        public void run()
         {
         }
     };
@@ -40,18 +45,18 @@ public class SubjectMap<K, V>
     private final Lock _writeLock;
     private final Lock _readLock;
 
-    private final HashMap<K, WeakReference<Observable<V>>> _weakCache;
-    private final HashMap<K, WeakReference<Subject<V, V>>> _weakSources;
+    private final HashMap<K, WeakReference<Flowable<V>>> _weakCache;
+    private final HashMap<K, WeakReference<Processor<V, V>>> _weakSources;
 
-    private final HashMap<K, Observable<V>> _cache;
+    private final HashMap<K, Flowable<V>> _cache;
 
-    private final BehaviorSubject<K> _faults;
+    private final BehaviorProcessor<K> _faults;
 
-    private class OnSubscribeAttach implements Observable.OnSubscribe<V>
+    private class OnSubscribeAttach implements FlowableOnSubscribe<V>
     {
         private final AtomicBoolean _isFirstFault = new AtomicBoolean(true);
         private final K _key;
-        private volatile Subject<V, V> _valueObservable;
+        private volatile Processor<V, V> _valueObservable;
 
         OnSubscribeAttach(K key)
         {
@@ -59,7 +64,7 @@ public class SubjectMap<K, V>
         }
 
         @Override
-        public void call(final Subscriber<? super V> subscriber)
+        public void subscribe(final FlowableEmitter<V> emitter) throws Exception
         {
             boolean isFirst = _isFirstFault.getAndSet(false);
 
@@ -77,16 +82,47 @@ public class SubjectMap<K, V>
                 Thread.yield();
             }
 
-            final Subscription subscription = _valueObservable.subscribe(subscriber);
+            final AtomicReference<Subscription> disposableTarget = new AtomicReference<>();
 
-            subscriber.add(BooleanSubscription.create(new Action0() {
+            _valueObservable.subscribe(new FlowableSubscriber<V>() {
                 @Override
-                public void call()
+                public void onSubscribe(Subscription s)
                 {
-                    subscription.unsubscribe();
+                    disposableTarget.set(s);
+
+                    s.request(Long.MAX_VALUE);
+                }
+
+                @Override
+                public void onNext(V v) {
+                    emitter.onNext(v);
+                }
+
+                @Override
+                public void onError(Throwable e) {
+                    emitter.onError(e);
+                }
+
+                @Override
+                public void onComplete() {
+                    emitter.onComplete();
+                }
+            });
+
+            emitter.setDisposable(new Disposable() {
+                public boolean _isDisposed;
+
+                @Override
+                public void dispose() {
+                    disposableTarget.get().cancel();
                     detachSource(_key);
                 }
-            }));
+
+                @Override
+                public boolean isDisposed() {
+                    return _isDisposed;
+                }
+            });
         }
     }
 
@@ -102,12 +138,12 @@ public class SubjectMap<K, V>
 
         _weakCache = new HashMap<>();
         _cache = new HashMap<>();
-        _faults = BehaviorSubject.create();
+        _faults = BehaviorProcessor.create();
 
         _weakSources = new HashMap<>();
     }
 
-    private Subject<V, V> attachSource(K key)
+    private Processor<V, V> attachSource(K key)
     {
         _writeLock.lock();
         try {
@@ -115,13 +151,13 @@ public class SubjectMap<K, V>
             // cleaned up properly. If not, this is a serious issue
             assert(!_weakSources.containsKey(key));
 
-            Subject<V, V> value = BehaviorSubject.create();
+            Processor<V, V> value = BehaviorProcessor.create();
 
-            WeakReference<Observable<V>> weakConnector = _weakCache.get(key);
+            WeakReference<Flowable<V>> weakConnector = _weakCache.get(key);
 
             // if an observable is being attached then it must have been added to the weak cache
             // and it must still be referenced
-            Observable<V> connector = weakConnector.get();
+            Flowable<V> connector = weakConnector.get();
 
             // the observable must be retained by someone since it is being attached
             assert(connector != null);
@@ -149,14 +185,14 @@ public class SubjectMap<K, V>
         }
     }
 
-    private void emitUpdate(K key, Action1<Subject<V, V>> updater, Action0 missHandler)
+    private void emitUpdate(K key, Consumer<Processor<V, V>> updater, Action missHandler)
     {
         emitUpdate(key, updater, missHandler, false);
     }
 
-    private void emitUpdate(K key, Action1<Subject<V, V>> updater, Action0 missHandler, boolean disconnect)
+    private void emitUpdate(K key, Consumer<Processor<V, V>> updater, Action missHandler, boolean disconnect)
     {
-        Subject<V, V> subject = null;
+        Processor<V, V> subject = null;
 
         if (disconnect) {
             _writeLock.lock();
@@ -168,7 +204,7 @@ public class SubjectMap<K, V>
         try {
             // if we have a subject, we will emit the new value on the subject
             if (_weakSources.containsKey(key)) {
-                WeakReference<Subject<V, V>> weakSource = _weakSources.get(key);
+                WeakReference<Processor<V, V>> weakSource = _weakSources.get(key);
 
                 subject = weakSource.get();
             }
@@ -189,11 +225,16 @@ public class SubjectMap<K, V>
 
         }
 
-        if (subject != null) {
-            updater.call(subject);
+        try {
+            if (subject != null) {
+                updater.accept(subject);
+            }
+            else {
+                missHandler.run();
+            }
         }
-        else {
-            missHandler.call();
+        catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -208,7 +249,7 @@ public class SubjectMap<K, V>
      *
      * @return an observable stream of keys
      */
-    public Observable<K> faults()
+    public Flowable<K> faults()
     {
         return _faults;
     }
@@ -223,11 +264,11 @@ public class SubjectMap<K, V>
      * @param valueProvider the method to be called to create the new value in the case of a hit
      * @param missHandler the callback for when a subscriber has not been bound
      */
-    public void onNext(K key, final Callable<V> valueProvider, Action0 missHandler)
+    public void onNext(K key, final Callable<V> valueProvider, Action missHandler)
     {
-        emitUpdate(key, new Action1<Subject<V, V>>() {
+        emitUpdate(key, new Consumer<Processor<V, V>>() {
             @Override
-            public void call(Subject<V, V> subject)
+            public void accept(Processor<V, V> subject)
             {
                 try {
                     subject.onNext(valueProvider.call());
@@ -283,9 +324,9 @@ public class SubjectMap<K, V>
      */
     public void onError(K key, final Throwable error)
     {
-        emitUpdate(key, new Action1<Subject<V, V>>() {
+        emitUpdate(key, new Consumer<Processor<V, V>>() {
             @Override
-            public void call(Subject<V, V> subject)
+            public void accept(Processor<V, V> subject)
             {
                 subject.onError(error);
             }
@@ -301,14 +342,14 @@ public class SubjectMap<K, V>
      * @return an observable which, when subscribed, will be bound to the specified key
      * and will receive all emissions and errors for the specified key
      */
-    public Observable<V> get(K key)
+    public Flowable<V> get(K key)
     {
-        WeakReference<Observable<V>> weakObservable;
+        WeakReference<Flowable<V>> weakObservable;
 
         _readLock.lock();
 
         try {
-            Observable<V> observable;
+            Flowable<V> observable;
 
             // attempt to retrieve the weakly held observable
             if (_weakCache.containsKey(key)) {
@@ -343,7 +384,7 @@ public class SubjectMap<K, V>
                 }
 
                 // no observable was found in the cache, create a new binding
-                observable = Observable.create(new OnSubscribeAttach(key));
+                observable = Flowable.create(new OnSubscribeAttach(key), BackpressureStrategy.LATEST);
 
                 _weakCache.put(key, new WeakReference<>(observable));
             }

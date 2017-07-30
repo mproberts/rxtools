@@ -1,6 +1,7 @@
 package com.github.mproberts.rxtools.list;
 
-import rx.Observable;
+
+import io.reactivex.Flowable;
 
 class BackpressureMergeObservableList<T> implements ObservableList<T>
 {
@@ -12,7 +13,7 @@ class BackpressureMergeObservableList<T> implements ObservableList<T>
     }
 
     @Override
-    public Observable<Update<T>> updates()
+    public Flowable<Update<T>> updates()
     {
         return _list.updates().lift(OperatorOnBackpressureMerge.<T>instance());
     }

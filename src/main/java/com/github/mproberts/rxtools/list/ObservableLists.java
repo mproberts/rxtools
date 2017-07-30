@@ -1,9 +1,9 @@
 package com.github.mproberts.rxtools.list;
 
 import com.github.mproberts.rxtools.SubjectMap;
-import rx.Observable;
-import rx.Scheduler;
-import rx.functions.Func1;
+import io.reactivex.Flowable;
+import io.reactivex.Scheduler;
+import io.reactivex.functions.Function;
 
 import java.util.Arrays;
 import java.util.List;
@@ -74,11 +74,11 @@ public final class ObservableLists
      * @param <R> The type of the mapped value
      * @return A new ObservableList which has values mapped via the supplied transform
      */
-    public static <T, R> ObservableList<R> transform(final ObservableList<T> list, final Func1<T, R> transform)
+    public static <T, R> ObservableList<R> transform(final ObservableList<T> list, final Function<T, R> transform)
     {
-        return new TransformObservableList<>(list, new Func1<List<T>, List<R>>() {
+        return new TransformObservableList<>(list, new Function<List<T>, List<R>>() {
             @Override
-            public List<R> call(List<T> list)
+            public List<R> apply(List<T> list)
             {
                 return new TransformList<>(list, transform);
             }
@@ -86,18 +86,18 @@ public final class ObservableLists
     }
 
     /**
-     * See {@link #transform(ObservableList, Func1 transform}.
+     * See {@link #transform(ObservableList, Function transform}.
      * @param list The list to wrap
      * @param mapping A SubjectMap used to maps input keys onto observable values
      * @param <T> The type of the source
      * @param <R> The type of the mapped value
      * @return A new ObservableList which has values mapped via the supplied SubjectMap
      */
-    public static <T, R> ObservableList<Observable<R>> transform(ObservableList<T> list, final SubjectMap<T, R> mapping)
+    public static <T, R> ObservableList<Flowable<R>> transform(ObservableList<T> list, final SubjectMap<T, R> mapping)
     {
-        return transform(list, new Func1<T, Observable<R>>() {
+        return transform(list, new Function<T, Flowable<R>>() {
             @Override
-            public Observable<R> call(T t)
+            public Flowable<R> apply(T t)
             {
                 return mapping.get(t);
             }
@@ -159,15 +159,15 @@ public final class ObservableLists
      * @param <T> The type of elements
      * @return A new ObservableList
      */
-    public static <T> ObservableList<T> diff(Observable<List<T>> list, boolean alwaysReload)
+    public static <T> ObservableList<T> diff(Flowable<List<T>> list, boolean alwaysReload)
     {
         return new DifferentialObservableList<>(list, alwaysReload);
     }
 
     /**
-     * See {@link #diff(Observable<List>) diff}.
+     * See {@link #diff(Flowable<List>) diff}.
      */
-    public static <T> ObservableList<T> diff(Observable<List<T>> list)
+    public static <T> ObservableList<T> diff(Flowable<List<T>> list)
     {
         return new DifferentialObservableList<>(list);
     }

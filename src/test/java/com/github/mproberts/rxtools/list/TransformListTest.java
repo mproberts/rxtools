@@ -1,6 +1,6 @@
 package com.github.mproberts.rxtools.list;
 
-import rx.functions.Func1;
+import io.reactivex.functions.Function;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -11,9 +11,9 @@ public class TransformListTest extends ListImplementationTest
     @Override
     protected List getList()
     {
-        return new TransformList<>(Arrays.asList(1, 2, 3, 4), new Func1<Integer, String>() {
+        return new TransformList<>(Arrays.asList(1, 2, 3, 4), new Function<Integer, String>() {
             @Override
-            public String call(Integer o)
+            public String apply(Integer o)
             {
                 return o.toString();
             }
@@ -29,9 +29,9 @@ public class TransformListTest extends ListImplementationTest
     @Override
     protected List getEmpty()
     {
-        return new TransformList<>(Collections.<Integer>emptyList(), new Func1<Integer, String>() {
+        return new TransformList<>(Collections.<Integer>emptyList(), new Function<Integer, String>() {
             @Override
-            public String call(Integer o)
+            public String apply(Integer o)
             {
                 return o.toString();
             }

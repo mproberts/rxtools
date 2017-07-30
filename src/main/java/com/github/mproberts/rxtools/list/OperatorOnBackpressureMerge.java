@@ -1,25 +1,27 @@
 package com.github.mproberts.rxtools.list;
 
+import io.reactivex.FlowableOperator;
+import io.reactivex.FlowableSubscriber;
+import io.reactivex.internal.util.BackpressureHelper;
+import io.reactivex.plugins.RxJavaPlugins;
+import io.reactivex.subscribers.DisposableSubscriber;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
+
 import java.util.ArrayList;
 import java.util.List;
 
-import rx.Observable;
-import rx.Producer;
-import rx.Subscriber;
-
 import java.util.concurrent.atomic.AtomicLong;
 
-import rx.internal.operators.BackpressureUtils;
-import rx.plugins.RxJavaHooks;
-
-class OperatorOnBackpressureMerge<T> implements Observable.Operator<ObservableList.Update<T>, ObservableList.Update<T>>
+class OperatorOnBackpressureMerge<T> implements FlowableOperator<ObservableList.Update<T>, ObservableList.Update<T>>
 {
     static final class Holder
     {
         static final OperatorOnBackpressureMerge<?> INSTANCE = new OperatorOnBackpressureMerge<>();
     }
 
-    static class BackpressureMergeSubscriber<T> extends Subscriber<ObservableList.Update<T>>
+    /*
+    static class BackpressureMergeSubscriber<T> extends DisposableSubscriber<ObservableList.Update<T>>
     {
         private volatile boolean _isDone;
         private AtomicLong _outstandingRequests = new AtomicLong();
@@ -40,7 +42,7 @@ class OperatorOnBackpressureMerge<T> implements Observable.Operator<ObservableLi
                     _lastList = null;
                 }
 
-                BackpressureUtils.getAndAddRequest(_outstandingRequests, n);
+                BackpressureHelper.add(_outstandingRequests, n);
 
                 if (lastList != null) {
                     onNext(new ObservableList.Update<>(lastList, queuedChanges));
@@ -56,21 +58,6 @@ class OperatorOnBackpressureMerge<T> implements Observable.Operator<ObservableLi
         }
 
         @Override
-        public void onStart()
-        {
-            request(Long.MAX_VALUE);
-        }
-
-        @Override
-        public void onCompleted()
-        {
-            if (!_isDone) {
-                _isDone = true;
-                _child.onCompleted();
-            }
-        }
-
-        @Override
         public void onError(Throwable e)
         {
             if (!_isDone) {
@@ -78,7 +65,16 @@ class OperatorOnBackpressureMerge<T> implements Observable.Operator<ObservableLi
                 _child.onError(e);
             }
             else {
-                RxJavaHooks.onError(e);
+                RxJavaPlugins.onError(e);
+            }
+        }
+
+        @Override
+        public void onComplete()
+        {
+            if (!_isDone) {
+                _isDone = true;
+                _child.onComplete();
             }
         }
 
@@ -111,6 +107,7 @@ class OperatorOnBackpressureMerge<T> implements Observable.Operator<ObservableLi
             }
         }
     }
+    */
 
     @SuppressWarnings("unchecked")
     static <T> OperatorOnBackpressureMerge<T> instance()
@@ -123,8 +120,8 @@ class OperatorOnBackpressureMerge<T> implements Observable.Operator<ObservableLi
     }
 
     @Override
-    public Subscriber<? super ObservableList.Update<T>> call(Subscriber<? super ObservableList.Update<T>> subscriber)
+    public Subscriber<? super ObservableList.Update<T>> apply(Subscriber<? super ObservableList.Update<T>> observer) throws Exception
     {
-        return new BackpressureMergeSubscriber<>(subscriber);
+        return observer;
     }
 }

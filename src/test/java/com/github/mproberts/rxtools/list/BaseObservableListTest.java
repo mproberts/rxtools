@@ -1,9 +1,9 @@
 package com.github.mproberts.rxtools.list;
 
+import io.reactivex.functions.Consumer;
+import io.reactivex.subscribers.TestSubscriber;
 import org.junit.Before;
 import org.junit.Test;
-import rx.functions.Action1;
-import rx.observers.TestSubscriber;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -50,9 +50,9 @@ public class BaseObservableListTest
 
         list.updates().subscribe(testSubscriber);
 
-        list.batch(new Action1<SimpleObservableList<Integer>>() {
+        list.batch(new Consumer<SimpleObservableList<Integer>>() {
             @Override
-            public void call(SimpleObservableList<Integer> integerBaseObservableList)
+            public void accept(SimpleObservableList<Integer> integerBaseObservableList)
             {
                 list.add(counter.incrementAndGet());
                 list.add(counter.incrementAndGet());
@@ -111,7 +111,7 @@ public class BaseObservableListTest
         final int iterations = 1000;
         final AtomicInteger counter = new AtomicInteger(0);
         TestSubscriber<ObservableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
-        ExecutorService executorService = Executors.newFixedThreadPool(iterations / 4);
+        ExecutorService executorService = Executors.newFixedThreadPool(25);
 
         List<Callable<Object>> callbales = new ArrayList<>();
 
@@ -131,7 +131,7 @@ public class BaseObservableListTest
 
         executorService.invokeAll(callbales);
 
-        List<ObservableList.Update<Integer>> events = testSubscriber.getOnNextEvents();
+        List<ObservableList.Update<Integer>> events = testSubscriber.values();
         ObservableList.Update<Integer> lastEvent = events.get(events.size() - 1);
         List<Integer> list = lastEvent.list;
 

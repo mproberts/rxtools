@@ -1,20 +1,21 @@
 package com.github.mproberts.rxtools.list;
 
-import rx.Observable;
+import io.reactivex.Flowable;
+
 
 import java.util.List;
 
 class SingletonObservableList<T> implements ObservableList<T>
 {
-    private final Observable<Update<T>> _justReloadObservable;
+    private final Flowable<Update<T>> _justReloadObservable;
 
     public SingletonObservableList(List<T> list)
     {
-        _justReloadObservable = Observable.just(new Update<>(list, Change.reloaded()));
+        _justReloadObservable = Flowable.just(new Update<>(list, Change.reloaded()));
     }
 
     @Override
-    public Observable<Update<T>> updates()
+    public Flowable<Update<T>> updates()
     {
         return _justReloadObservable;
     }

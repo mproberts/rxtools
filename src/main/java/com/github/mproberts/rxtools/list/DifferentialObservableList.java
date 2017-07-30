@@ -1,72 +1,69 @@
 package com.github.mproberts.rxtools.list;
 
-import rx.Observable;
-import rx.functions.Action0;
-import rx.functions.Action1;
-import rx.functions.Func1;
-import rx.subscriptions.CompositeSubscription;
+import io.reactivex.*;
+import io.reactivex.functions.BiFunction;
+import io.reactivex.functions.Function;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-class DifferentialObservableList<T> extends BaseObservableList<T>
+class DifferentialObservableList<T> implements ObservableList<T>
 {
-    private final CompositeSubscription _subscription = new CompositeSubscription();
-    private final Observable<List<T>> _list;
     private final boolean _alwaysReload;
+    private final Flowable<Update<T>> _diffTransform;
+    private List<T> _previousList;
 
     private static <T> List<Change> computeDiff(List<T> before, List<T> after)
     {
         return Collections.singletonList(Change.reloaded());
     }
 
-    DifferentialObservableList(Observable<List<T>> list, boolean alwaysReload)
+    DifferentialObservableList(Flowable<List<T>> listStream)
     {
-        _list = list;
-        _alwaysReload = alwaysReload;
+        this(listStream, false);
     }
 
-    DifferentialObservableList(Observable<List<T>> listStream)
+    DifferentialObservableList(Flowable<List<T>> list, boolean alwaysReload)
     {
-        _list = listStream;
-        _alwaysReload = false;
+        _alwaysReload = alwaysReload;
+        _diffTransform = list
+                .map(new Function<List<T>, Update<T>>() {
+                    @Override
+                    public Update<T> apply(List<T> ts) {
+                        return new Update<T>(ts, Change.reloaded());
+                    }
+                })
+                .scan(new BiFunction<Update<T>, Update<T>, Update<T>>() {
+                    @Override
+                    public Update<T> apply(Update<T> previous, Update<T> next) {
+                        if (previous == null) {
+                            return next;
+                        }
+
+                        List<Change> changes = computeDiff(previous.list, next.list);
+
+                        _previousList = next.list;
+
+                        return new Update<>(next.list, changes);
+                    }
+                });
     }
 
     @Override
-    public Observable<Update<T>> updates()
+    public Flowable<Update<T>> updates()
     {
-        return super.updates()
-                .doOnSubscribe(new Action0() {
+        return _diffTransform
+                .startWith(Flowable.create(new FlowableOnSubscribe<Update<T>>() {
                     @Override
-                    public void call()
-                    {
-                        _subscription.add(_list.subscribe(new Action1<List<T>>() {
-                            @Override
-                            public void call(final List<T> updatedList)
-                            {
-                                applyUpdate(new Func1<List<T>, Update<T>>() {
-                                    @Override
-                                    public Update<T> call(List<T> list)
-                                    {
-                                        if (list == null || _alwaysReload) {
-                                            return new Update<>(updatedList, Collections.singletonList(Change.reloaded()));
-                                        }
+                    public void subscribe(FlowableEmitter<Update<T>> updateEmitter) throws Exception {
+                        if (_previousList != null) {
+                            Update<T> update = new Update<>(new ArrayList<>(_previousList), Change.reloaded());
+                            updateEmitter.onNext(update);
+                        }
 
-                                        List<Change> changes = computeDiff(list, updatedList);
-
-                                        return new Update<>(updatedList, changes);
-                                    }
-                                });
-                            }
-                        }));
+                        updateEmitter.onComplete();
                     }
-                })
-                .doOnUnsubscribe(new Action0() {
-                    @Override
-                    public void call()
-                    {
-                        _subscription.clear();
-                    }
-                });
+                }, BackpressureStrategy.LATEST));
     }
 }

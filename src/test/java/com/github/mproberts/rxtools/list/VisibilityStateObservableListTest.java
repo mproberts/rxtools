@@ -1,10 +1,11 @@
 package com.github.mproberts.rxtools.list;
 
+import io.reactivex.BackpressureStrategy;
+import io.reactivex.Flowable;
+import io.reactivex.subjects.BehaviorSubject;
+import io.reactivex.subjects.Subject;
+import io.reactivex.subscribers.TestSubscriber;
 import org.junit.Test;
-import rx.Observable;
-import rx.observers.TestSubscriber;
-import rx.subjects.BehaviorSubject;
-import rx.subjects.Subject;
 
 import java.util.Arrays;
 import java.util.List;
@@ -16,7 +17,7 @@ public class VisibilityStateObservableListTest
     class VisibleItem<T> implements VisibilityState<T>
     {
         public final T value;
-        public final Subject<Boolean, Boolean> visibility;
+        public final Subject<Boolean> visibility;
 
         VisibleItem(T value)
         {
@@ -26,7 +27,8 @@ public class VisibilityStateObservableListTest
         VisibleItem(T value, boolean initialVisibility)
         {
             this.value = value;
-            this.visibility = BehaviorSubject.create(initialVisibility);
+            this.visibility = BehaviorSubject.create();
+            this.visibility.onNext(initialVisibility);
         }
 
         @Override
@@ -41,9 +43,9 @@ public class VisibilityStateObservableListTest
         }
 
         @Override
-        public Observable<Boolean> isVisible()
+        public Flowable<Boolean> isVisible()
         {
-            return visibility;
+            return visibility.toFlowable(BackpressureStrategy.BUFFER);
         }
     }
 
@@ -66,7 +68,7 @@ public class VisibilityStateObservableListTest
 
         list.updates().subscribe(testSubscriber);
 
-        List<ObservableList.Update> onNextEvents = testSubscriber.getOnNextEvents();
+        List<ObservableList.Update> onNextEvents = testSubscriber.values();
         testSubscriber.assertValueCount(1);
 
         ObservableList.Update update = onNextEvents.get(0);
@@ -100,7 +102,7 @@ public class VisibilityStateObservableListTest
         item3.setIsVisible(false);
         item5.setIsVisible(false);
 
-        List<ObservableList.Update> onNextEvents = testSubscriber.getOnNextEvents();
+        List<ObservableList.Update> onNextEvents = testSubscriber.values();
         testSubscriber.assertValueCount(4);
 
         ObservableList.Update update1 = onNextEvents.get(0);
@@ -142,7 +144,7 @@ public class VisibilityStateObservableListTest
         item2.setIsVisible(true);
         item3.setIsVisible(false);
 
-        List<ObservableList.Update> onNextEvents = testSubscriber.getOnNextEvents();
+        List<ObservableList.Update> onNextEvents = testSubscriber.values();
         testSubscriber.assertValueCount(4);
 
         ObservableList.Update update1 = onNextEvents.get(0);
@@ -182,7 +184,7 @@ public class VisibilityStateObservableListTest
 
         simpleList.remove(1);
 
-        List<ObservableList.Update> onNextEvents = testSubscriber.getOnNextEvents();
+        List<ObservableList.Update> onNextEvents = testSubscriber.values();
         testSubscriber.assertValueCount(2);
 
         ObservableList.Update update1 = onNextEvents.get(0);
@@ -215,7 +217,7 @@ public class VisibilityStateObservableListTest
         simpleList.add(1, item2);
         simpleList.add(1, hidden1);
 
-        List<ObservableList.Update> onNextEvents = testSubscriber.getOnNextEvents();
+        List<ObservableList.Update> onNextEvents = testSubscriber.values();
         testSubscriber.assertValueCount(3);
 
         ObservableList.Update update1 = onNextEvents.get(0);
@@ -255,7 +257,7 @@ public class VisibilityStateObservableListTest
         simpleList.move(2, 0);
         simpleList.move(0, 3);
 
-        List<ObservableList.Update> onNextEvents = testSubscriber.getOnNextEvents();
+        List<ObservableList.Update> onNextEvents = testSubscriber.values();
         testSubscriber.assertValueCount(4);
 
         ObservableList.Update update1 = onNextEvents.get(0);
@@ -274,10 +276,5 @@ public class VisibilityStateObservableListTest
 
         assertEquals(Arrays.asList(ObservableList.Change.moved(0, 3)), update4.changes);
         assertEquals(Arrays.asList(2, 1, 4, 3), update4.list);
-    }
-
-    @Test
-    public void testReloadUnsubscribes()
-    {
     }
 }

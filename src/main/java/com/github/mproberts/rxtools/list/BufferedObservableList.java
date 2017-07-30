@@ -1,8 +1,8 @@
 package com.github.mproberts.rxtools.list;
 
-import rx.Observable;
-import rx.Scheduler;
-import rx.functions.Func1;
+import io.reactivex.Flowable;
+import io.reactivex.Scheduler;
+import io.reactivex.functions.Function;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,13 +25,13 @@ class BufferedObservableList<T> implements ObservableList<T>
     }
 
     @Override
-    public Observable<Update<T>> updates()
+    public Flowable<Update<T>> updates()
     {
         return _list.updates()
                 .buffer(_timeSpan, _timeUnit, _scheduler)
-                .map(new Func1<List<Update<T>>, Update<T>>() {
+                .map(new Function<List<Update<T>>, Update<T>>() {
                     @Override
-                    public Update<T> call(List<Update<T>> updates) {
+                    public Update<T> apply(List<Update<T>> updates) {
                         Update<T> lastUpdate = updates.get(updates.size() - 1);
                         List<Change> allChanges = new ArrayList<>();
 

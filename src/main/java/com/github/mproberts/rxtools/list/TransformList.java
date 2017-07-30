@@ -1,6 +1,6 @@
 package com.github.mproberts.rxtools.list;
 
-import rx.functions.Func1;
+import io.reactivex.functions.Function;
 
 import java.util.Collection;
 import java.util.Iterator;
@@ -33,7 +33,12 @@ class TransformList<K, V> implements List<V>
                 return null;
             }
 
-            return _transform.call(next);
+            try {
+                return _transform.apply(next);
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
 
         @Override
@@ -61,7 +66,12 @@ class TransformList<K, V> implements List<V>
         @Override
         public V next()
         {
-            return _transform.call(_iterator.next());
+            try {
+                return _transform.apply(_iterator.next());
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
 
         @Override
@@ -73,7 +83,12 @@ class TransformList<K, V> implements List<V>
         @Override
         public V previous()
         {
-            return _transform.call(_iterator.previous());
+            try {
+                return _transform.apply(_iterator.previous());
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
 
         @Override
@@ -108,9 +123,9 @@ class TransformList<K, V> implements List<V>
     }
 
     private final List<K> _list;
-    private final Func1<K, V> _transform;
+    private final Function<K, V> _transform;
 
-    TransformList(List<K> list, Func1<K, V> transform)
+    TransformList(List<K> list, Function<K, V> transform)
     {
         _list = list;
         _transform = transform;
@@ -192,7 +207,15 @@ class TransformList<K, V> implements List<V>
     @Override
     public V get(int index)
     {
-        return _transform.call(_list.get(index));
+        try {
+            return _transform.apply(_list.get(index));
+        }
+        catch (RuntimeException re) {
+            throw re;
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
