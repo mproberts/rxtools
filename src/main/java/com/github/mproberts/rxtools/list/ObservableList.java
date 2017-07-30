@@ -20,7 +20,7 @@ public interface ObservableList<T>
         /**
          * The type of the change dictates which behaviour to apply to the list
          */
-        enum Type
+        public enum Type
         {
             Moved,
             Inserted,
