@@ -145,9 +145,19 @@ public class SubjectMap<K, V>
 
     private void emitUpdate(K key, Action1<Subject<V, V>> updater)
     {
+        emitUpdate(key, updater, false);
+    }
+
+    private void emitUpdate(K key, Action1<Subject<V, V>> updater, boolean disconnect)
+    {
         Subject<V, V> subject = null;
 
-        _readLock.lock();
+        if (disconnect) {
+            _writeLock.lock();
+        }
+        else {
+            _readLock.lock();
+        }
 
         try {
             // if we have a subject, we will emit the new value on the subject
@@ -156,9 +166,21 @@ public class SubjectMap<K, V>
 
                 subject = weakSource.get();
             }
+
+            if (disconnect) {
+                _weakSources.remove(key);
+                _weakCache.remove(key);
+                _cache.remove(key);
+            }
         }
         finally {
-            _readLock.unlock();
+            if (disconnect) {
+                _writeLock.unlock();
+            }
+            else {
+                _readLock.unlock();
+            }
+
         }
 
         if (subject != null) {
@@ -218,7 +240,7 @@ public class SubjectMap<K, V>
             {
                 subject.onError(exception);
             }
-        });
+        }, true);
     }
 
     /**

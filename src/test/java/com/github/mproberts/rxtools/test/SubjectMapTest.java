@@ -395,8 +395,6 @@ public class SubjectMapTest
         RuntimeException error = new RuntimeException("whoops");
         source.onError("hello", error);
 
-        System.gc();
-
         subscribe(source.get("hello"), testSubscriber3);
 
         testSubscriber1.assertError(error);
