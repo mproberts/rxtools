@@ -14,9 +14,9 @@ import static org.junit.Assert.assertEquals;
 
 public class IndexedFlowableListTest
 {
-    protected TestSubscriber<FlowableList.Update<Flowable<String>>> createIndexedListt(FlowableList<Integer> list)
+    protected TestSubscriber<Update<Flowable<String>>> createIndexedListt(FlowableList<Integer> list)
     {
-        FlowableList<Flowable<String>> transformedList = FlowableLists.indexedTransform(list, new Function3<Integer, Flowable<Item<Integer>>, Flowable<Item<Integer>>, Flowable<String>>() {
+        FlowableList<Flowable<String>> transformedList = list.indexedTransform(new Function3<Integer, Flowable<Item<Integer>>, Flowable<Item<Integer>>, Flowable<String>>() {
             @Override
             public Flowable<String> apply(final Integer item, Flowable<Item<Integer>> previousItem, Flowable<Item<Integer>> nextItem) throws Exception
             {
@@ -41,13 +41,13 @@ public class IndexedFlowableListTest
     {
         SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3));
 
-        TestSubscriber<FlowableList.Update<Flowable<String>>> testSubscriber = createIndexedListt(list);
+        TestSubscriber<Update<Flowable<String>>> testSubscriber = createIndexedListt(list);
 
         testSubscriber.assertValueCount(1);
 
-        List<FlowableList.Update<Flowable<String>>> onNextEvents = testSubscriber.values();
+        List<Update<Flowable<String>>> onNextEvents = testSubscriber.values();
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), onNextEvents.get(0).changes);
+        assertEquals(Arrays.asList(Change.reloaded()), onNextEvents.get(0).changes);
 
         List<Flowable<String>> list1 = onNextEvents.get(0).list;
 
@@ -81,13 +81,13 @@ public class IndexedFlowableListTest
     {
         SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3, 4));
 
-        TestSubscriber<FlowableList.Update<Flowable<String>>> testSubscriber = createIndexedListt(list);
+        TestSubscriber<Update<Flowable<String>>> testSubscriber = createIndexedListt(list);
 
         testSubscriber.assertValueCount(1);
 
-        List<FlowableList.Update<Flowable<String>>> onNextEvents = testSubscriber.values();
+        List<Update<Flowable<String>>> onNextEvents = testSubscriber.values();
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), onNextEvents.get(0).changes);
+        assertEquals(Arrays.asList(Change.reloaded()), onNextEvents.get(0).changes);
 
         List<Flowable<String>> list1 = onNextEvents.get(0).list;
 
@@ -121,13 +121,13 @@ public class IndexedFlowableListTest
     {
         SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3, 4));
 
-        TestSubscriber<FlowableList.Update<Flowable<String>>> testSubscriber = createIndexedListt(list);
+        TestSubscriber<Update<Flowable<String>>> testSubscriber = createIndexedListt(list);
 
         testSubscriber.assertValueCount(1);
 
-        List<FlowableList.Update<Flowable<String>>> onNextEvents = testSubscriber.values();
+        List<Update<Flowable<String>>> onNextEvents = testSubscriber.values();
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), onNextEvents.get(0).changes);
+        assertEquals(Arrays.asList(Change.reloaded()), onNextEvents.get(0).changes);
 
         List<Flowable<String>> list1 = onNextEvents.get(0).list;
 

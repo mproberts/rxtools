@@ -16,10 +16,10 @@ public class PrefetchFlowableListTest
     {
         final List<Integer> fetches = new ArrayList<>();
         final List<Integer> prefetches = new ArrayList<>();
-        TestSubscriber<FlowableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
+        TestSubscriber<Update<Integer>> testSubscriber = new TestSubscriber<>();
 
         SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-        FlowableList<Integer> transformedList = FlowableLists.transform(list, new Function<Integer, Integer>() {
+        FlowableList<Integer> transformedList = list.transform(new Function<Integer, Integer>() {
             @Override
             public Integer apply(Integer value) {
                 fetches.add(value);
@@ -28,7 +28,7 @@ public class PrefetchFlowableListTest
             }
         });
 
-        FlowableList<Integer> prefetchList = FlowableLists.prefetch(transformedList, 2, 3,
+        FlowableList<Integer> prefetchList = transformedList.prefetch(2, 3,
                 new Consumer<Collection<Integer>>() {
                     @Override
                     public void accept(Collection<Integer> integer) throws Exception {
@@ -40,9 +40,9 @@ public class PrefetchFlowableListTest
 
         testSubscriber.assertValueCount(1);
 
-        List<FlowableList.Update<Integer>> onNextEvents = testSubscriber.values();
+        List<Update<Integer>> onNextEvents = testSubscriber.values();
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), onNextEvents.get(0).changes);
+        assertEquals(Arrays.asList(Change.reloaded()), onNextEvents.get(0).changes);
 
         List<Integer> list1 = onNextEvents.get(0).list;
 
@@ -58,10 +58,10 @@ public class PrefetchFlowableListTest
     {
         final List<Integer> fetches = new ArrayList<>();
         final List<Integer> prefetches = new ArrayList<>();
-        TestSubscriber<FlowableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
+        TestSubscriber<Update<Integer>> testSubscriber = new TestSubscriber<>();
 
         SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-        FlowableList<Integer> transformedList = FlowableLists.transform(list, new Function<Integer, Integer>() {
+        FlowableList<Integer> transformedList = list.transform(new Function<Integer, Integer>() {
             @Override
             public Integer apply(Integer value) {
                 fetches.add(value);
@@ -70,7 +70,7 @@ public class PrefetchFlowableListTest
             }
         });
 
-        FlowableList<Integer> prefetchList = FlowableLists.prefetch(transformedList, 0, 0,
+        FlowableList<Integer> prefetchList = transformedList.prefetch(0, 0,
                 new Consumer<Collection<Integer>>() {
                     @Override
                     public void accept(Collection<Integer> integer) throws Exception {
@@ -82,9 +82,9 @@ public class PrefetchFlowableListTest
 
         testSubscriber.assertValueCount(1);
 
-        List<FlowableList.Update<Integer>> onNextEvents = testSubscriber.values();
+        List<Update<Integer>> onNextEvents = testSubscriber.values();
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), onNextEvents.get(0).changes);
+        assertEquals(Arrays.asList(Change.reloaded()), onNextEvents.get(0).changes);
 
         List<Integer> list1 = onNextEvents.get(0).list;
 
@@ -100,10 +100,10 @@ public class PrefetchFlowableListTest
     {
         final List<Integer> fetches = new ArrayList<>();
         final List<Integer> prefetches = new ArrayList<>();
-        TestSubscriber<FlowableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
+        TestSubscriber<Update<Integer>> testSubscriber = new TestSubscriber<>();
 
         SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-        FlowableList<Integer> transformedList = FlowableLists.transform(list, new Function<Integer, Integer>() {
+        FlowableList<Integer> transformedList = list.transform(new Function<Integer, Integer>() {
             @Override
             public Integer apply(Integer value) {
                 fetches.add(value);
@@ -112,7 +112,7 @@ public class PrefetchFlowableListTest
             }
         });
 
-        FlowableList<Integer> prefetchList = FlowableLists.prefetch(transformedList, 0, 4,
+        FlowableList<Integer> prefetchList = transformedList.prefetch(0, 4,
                 new Consumer<Collection<Integer>>() {
                     @Override
                     public void accept(Collection<Integer> integer) throws Exception {
@@ -124,9 +124,9 @@ public class PrefetchFlowableListTest
 
         testSubscriber.assertValueCount(1);
 
-        List<FlowableList.Update<Integer>> onNextEvents = testSubscriber.values();
+        List<Update<Integer>> onNextEvents = testSubscriber.values();
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), onNextEvents.get(0).changes);
+        assertEquals(Arrays.asList(Change.reloaded()), onNextEvents.get(0).changes);
 
         List<Integer> list1 = onNextEvents.get(0).list;
 

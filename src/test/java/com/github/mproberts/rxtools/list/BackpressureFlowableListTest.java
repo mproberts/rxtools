@@ -22,9 +22,9 @@ public class BackpressureFlowableListTest
 
         list.updates()
                 .observeOn(Schedulers.computation())
-                .doOnNext(new Consumer<FlowableList.Update<Integer>>() {
+                .doOnNext(new Consumer<Update<Integer>>() {
                     @Override
-                    public void accept(FlowableList.Update<Integer> integerUpdate)
+                    public void accept(Update<Integer> integerUpdate)
                     {
                         if (integerUpdate.list.size() % 10 == 0) {
                             Thread.yield();
@@ -57,7 +57,7 @@ public class BackpressureFlowableListTest
     {
         TestScheduler testScheduler = new TestScheduler();
         SimpleFlowableList<Integer> list = new SimpleFlowableList<>();
-        FlowableList<Integer> bufferedList = FlowableLists.buffer(list, 50, TimeUnit.MILLISECONDS, testScheduler);
+        FlowableList<Integer> bufferedList = list.buffer(50, TimeUnit.MILLISECONDS, testScheduler);
 
         TestSubscriber testSubscriber = new TestSubscriber();
 
@@ -83,14 +83,14 @@ public class BackpressureFlowableListTest
         testSubscriber.awaitCount(2);
 
         // should collapse initial reload + 100 inserts into a reload
-        FlowableList.Update<Integer> update1 = (FlowableList.Update<Integer>) testSubscriber.values().get(0);
+        Update<Integer> update1 = (Update<Integer>) testSubscriber.values().get(0);
 
         // should collapse 500 inserts into one changeset
-        FlowableList.Update<Integer> update2 = (FlowableList.Update<Integer>) testSubscriber.values().get(1);
+        Update<Integer> update2 = (Update<Integer>) testSubscriber.values().get(1);
 
-        FlowableList.Change firstChange = update1.changes.get(0);
+        Change firstChange = update1.changes.get(0);
 
-        assertEquals(FlowableList.Change.Type.Reloaded, firstChange.type);
+        assertEquals(Change.Type.Reloaded, firstChange.type);
         assertEquals(500, update2.changes.size());
 
         testSubscriber.dispose();

@@ -13,7 +13,7 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 
-public class IndexedFlowableList<T, R> implements FlowableList<R>
+public class IndexedFlowableList<T, R> extends FlowableList<R>
 {
     private final FlowableList<T> _list;
     private final Function3<T, Flowable<Item<T>>, Flowable<Item<T>>, R> _transform;

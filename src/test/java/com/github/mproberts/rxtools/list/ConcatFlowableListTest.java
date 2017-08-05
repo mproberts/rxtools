@@ -13,19 +13,19 @@ public class ConcatFlowableListTest
     @Test
     public void testSingleList()
     {
-        List<FlowableList<Integer>> flowableLists = Arrays.asList(FlowableLists.singletonList(1, 2, 3));
-        FlowableList<?> list = FlowableLists.concat(flowableLists);
+        List<FlowableList<Integer>> flowableLists = Arrays.asList(FlowableList.of(1, 2, 3));
+        FlowableList<?> list = FlowableList.concat(flowableLists);
         TestSubscriber testSubscriber = new TestSubscriber();
 
         list.updates().subscribe(testSubscriber);
 
         testSubscriber.assertValueCount(1);
 
-        List<FlowableList.Update> onNextEvents = testSubscriber.values();
+        List<Update> onNextEvents = testSubscriber.values();
 
-        FlowableList.Update update = onNextEvents.get(0);
+        Update update = onNextEvents.get(0);
 
-        assertEquals(FlowableList.Change.reloaded(), update.changes.get(0));
+        assertEquals(Change.reloaded(), update.changes.get(0));
         assertEquals(Arrays.asList(1, 2, 3), update.list);
     }
 
@@ -47,7 +47,7 @@ public class ConcatFlowableListTest
         c.add(7);
         c.add(8);
 
-        FlowableList<?> list = FlowableLists.concat(Arrays.<FlowableList<Integer>>asList(a, b, c));
+        FlowableList<?> list = FlowableList.concat(Arrays.<FlowableList<Integer>>asList(a, b, c));
         TestSubscriber testSubscriber = new TestSubscriber();
 
         list.updates().subscribe(testSubscriber);
@@ -57,19 +57,19 @@ public class ConcatFlowableListTest
 
         testSubscriber.assertValueCount(3);
 
-        List<FlowableList.Update> onNextEvents = testSubscriber.values();
+        List<Update> onNextEvents = testSubscriber.values();
 
-        FlowableList.Update reload = onNextEvents.get(0);
-        FlowableList.Update insert9 = onNextEvents.get(1);
-        FlowableList.Update insert10 = onNextEvents.get(2);
+        Update reload = onNextEvents.get(0);
+        Update insert9 = onNextEvents.get(1);
+        Update insert10 = onNextEvents.get(2);
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), reload.changes);
+        assertEquals(Arrays.asList(Change.reloaded()), reload.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8), reload.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.inserted(5)), insert9.changes);
+        assertEquals(Arrays.asList(Change.inserted(5)), insert9.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4, 5, 9, 6, 7, 8), insert9.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.inserted(7)), insert10.changes);
+        assertEquals(Arrays.asList(Change.inserted(7)), insert10.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4, 5, 9, 6, 10, 7, 8), insert10.list);
     }
 
@@ -91,7 +91,7 @@ public class ConcatFlowableListTest
         c.add(7);
         c.add(8);
 
-        FlowableList list = FlowableLists.concatGeneric(FlowableLists.singletonList(a, b, c));
+        FlowableList list = FlowableList.concatGeneric(FlowableList.of(a, b, c));
         TestSubscriber testSubscriber = new TestSubscriber();
 
         list.updates().subscribe(testSubscriber);
@@ -101,19 +101,19 @@ public class ConcatFlowableListTest
 
         testSubscriber.assertValueCount(3);
 
-        List<FlowableList.Update> onNextEvents = testSubscriber.values();
+        List<Update> onNextEvents = testSubscriber.values();
 
-        FlowableList.Update reload = onNextEvents.get(0);
-        FlowableList.Update insert9 = onNextEvents.get(1);
-        FlowableList.Update insert10 = onNextEvents.get(2);
+        Update reload = onNextEvents.get(0);
+        Update insert9 = onNextEvents.get(1);
+        Update insert10 = onNextEvents.get(2);
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), reload.changes);
+        assertEquals(Arrays.asList(Change.reloaded()), reload.changes);
         assertEquals(Arrays.asList(1, 2, 3, "4", "5", 6, 7, 8), reload.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.inserted(5)), insert9.changes);
+        assertEquals(Arrays.asList(Change.inserted(5)), insert9.changes);
         assertEquals(Arrays.asList(1, 2, 3, "4", "5", "9", 6, 7, 8), insert9.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.inserted(7)), insert10.changes);
+        assertEquals(Arrays.asList(Change.inserted(7)), insert10.changes);
         assertEquals(Arrays.asList(1, 2, 3, "4", "5", "9", 6, 10, 7, 8), insert10.list);
     }
 
@@ -131,7 +131,7 @@ public class ConcatFlowableListTest
 
         c.add(4);
 
-        FlowableList<?> list = FlowableLists.concat(Arrays.<FlowableList<Integer>>asList(a, b, c));
+        FlowableList<?> list = FlowableList.concat(Arrays.<FlowableList<Integer>>asList(a, b, c));
         TestSubscriber testSubscriber = new TestSubscriber();
 
         list.updates().subscribe(testSubscriber);
@@ -141,19 +141,19 @@ public class ConcatFlowableListTest
 
         testSubscriber.assertValueCount(3);
 
-        List<FlowableList.Update> onNextEvents = testSubscriber.values();
+        List<Update> onNextEvents = testSubscriber.values();
 
-        FlowableList.Update reload = onNextEvents.get(0);
-        FlowableList.Update remove3 = onNextEvents.get(1);
-        FlowableList.Update remove2 = onNextEvents.get(2);
+        Update reload = onNextEvents.get(0);
+        Update remove3 = onNextEvents.get(1);
+        Update remove2 = onNextEvents.get(2);
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), reload.changes);
+        assertEquals(Arrays.asList(Change.reloaded()), reload.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4), reload.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.removed(2)), remove3.changes);
+        assertEquals(Arrays.asList(Change.removed(2)), remove3.changes);
         assertEquals(Arrays.asList(1, 2, 4), remove3.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.removed(1)), remove2.changes);
+        assertEquals(Arrays.asList(Change.removed(1)), remove2.changes);
         assertEquals(Arrays.asList(1, 4), remove2.list);
     }
 
@@ -174,7 +174,7 @@ public class ConcatFlowableListTest
 
         c.add(7);
 
-        FlowableList<?> list = FlowableLists.concat(Arrays.<FlowableList<Integer>>asList(a, b, c));
+        FlowableList<?> list = FlowableList.concat(Arrays.<FlowableList<Integer>>asList(a, b, c));
         TestSubscriber testSubscriber = new TestSubscriber();
 
         list.updates().subscribe(testSubscriber);
@@ -183,15 +183,15 @@ public class ConcatFlowableListTest
 
         testSubscriber.assertValueCount(2);
 
-        List<FlowableList.Update> onNextEvents = testSubscriber.values();
+        List<Update> onNextEvents = testSubscriber.values();
 
-        FlowableList.Update reload = onNextEvents.get(0);
-        FlowableList.Update move3 = onNextEvents.get(1);
+        Update reload = onNextEvents.get(0);
+        Update move3 = onNextEvents.get(1);
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), reload.changes);
+        assertEquals(Arrays.asList(Change.reloaded()), reload.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6, 7), reload.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.moved(2, 4)), move3.changes);
+        assertEquals(Arrays.asList(Change.moved(2, 4)), move3.changes);
         assertEquals(Arrays.asList(1, 2, 4, 5, 3, 6, 7), move3.list);
     }
 
@@ -219,7 +219,7 @@ public class ConcatFlowableListTest
         combinedList.add(b);
         combinedList.add(c);
 
-        FlowableList<?> list = FlowableLists.concat(combinedList);
+        FlowableList<?> list = FlowableList.concat(combinedList);
         TestSubscriber testSubscriber = new TestSubscriber();
 
         list.updates().subscribe(testSubscriber);
@@ -227,24 +227,24 @@ public class ConcatFlowableListTest
         combinedList.add(1, d);
         combinedList.remove(b);
 
-        List<FlowableList.Update> onNextEvents = testSubscriber.values();
+        List<Update> onNextEvents = testSubscriber.values();
 
         testSubscriber.assertValueCount(3);
 
-        FlowableList.Update reload = onNextEvents.get(0);
-        FlowableList.Update insertd = onNextEvents.get(1);
-        FlowableList.Update removeb = onNextEvents.get(2);
+        Update reload = onNextEvents.get(0);
+        Update insertd = onNextEvents.get(1);
+        Update removeb = onNextEvents.get(2);
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), reload.changes);
+        assertEquals(Arrays.asList(Change.reloaded()), reload.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4, 5), reload.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.inserted(2)), insertd.changes);
+        assertEquals(Arrays.asList(Change.inserted(2)), insertd.changes);
         assertEquals(Arrays.asList(1, 2, 6, 3, 4, 5), insertd.list);
 
         assertEquals(
                 Arrays.asList(
-                        FlowableList.Change.removed(3),
-                        FlowableList.Change.removed(4)),
+                        Change.removed(3),
+                        Change.removed(4)),
                 removeb.changes);
         assertEquals(Arrays.asList(1, 2, 6, 5), removeb.list);
     }
@@ -271,7 +271,7 @@ public class ConcatFlowableListTest
         combinedList.add(b);
         combinedList.add(c);
 
-        FlowableList<?> list = FlowableLists.concat(combinedList);
+        FlowableList<?> list = FlowableList.concat(combinedList);
         TestSubscriber testSubscriber = new TestSubscriber();
 
         list.updates().subscribe(testSubscriber);
@@ -280,34 +280,34 @@ public class ConcatFlowableListTest
         c.add(7);
         combinedList.move(2, 1);
 
-        List<FlowableList.Update> onNextEvents = testSubscriber.values();
+        List<Update> onNextEvents = testSubscriber.values();
 
         testSubscriber.assertValueCount(4);
 
-        FlowableList.Update reload = onNextEvents.get(0);
-        FlowableList.Update move = onNextEvents.get(1);
-        FlowableList.Update insert7 = onNextEvents.get(2);
-        FlowableList.Update move2 = onNextEvents.get(3);
+        Update reload = onNextEvents.get(0);
+        Update move = onNextEvents.get(1);
+        Update insert7 = onNextEvents.get(2);
+        Update move2 = onNextEvents.get(3);
 
         assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6), reload.list);
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), reload.changes);
+        assertEquals(Arrays.asList(Change.reloaded()), reload.changes);
 
         assertEquals(Arrays.asList(1, 2, 5, 6, 3, 4), move.list);
         assertEquals(
                 Arrays.asList(
-                        FlowableList.Change.moved(2, 4),
-                        FlowableList.Change.moved(3, 5)),
+                        Change.moved(2, 4),
+                        Change.moved(3, 5)),
                 move.changes);
 
         assertEquals(Arrays.asList(1, 2, 5, 6, 7, 3, 4), insert7.list);
-        assertEquals(Arrays.asList(FlowableList.Change.inserted(4)), insert7.changes);
+        assertEquals(Arrays.asList(Change.inserted(4)), insert7.changes);
 
         // move it back to the original order
         assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6, 7), move2.list);
         assertEquals(
                 Arrays.asList(
-                        FlowableList.Change.moved(5, 2),
-                        FlowableList.Change.moved(6, 3)),
+                        Change.moved(5, 2),
+                        Change.moved(6, 3)),
                 move2.changes);
     }
 
@@ -323,7 +323,7 @@ public class ConcatFlowableListTest
         b.add(3);
         b.add(4);
 
-        FlowableList<?> list = FlowableLists.concat(Arrays.<FlowableList<Integer>>asList(a, b));
+        FlowableList<?> list = FlowableList.concat(Arrays.<FlowableList<Integer>>asList(a, b));
         TestSubscriber testSubscriber1 = new TestSubscriber();
         TestSubscriber testSubscriber2 = new TestSubscriber();
         TestSubscriber testSubscriber3 = new TestSubscriber();
@@ -342,52 +342,52 @@ public class ConcatFlowableListTest
 
         b.add(7);
 
-        List<FlowableList.Update> onNextEvents1 = testSubscriber1.values();
-        List<FlowableList.Update> onNextEvents2 = testSubscriber2.values();
-        List<FlowableList.Update> onNextEvents3 = testSubscriber3.values();
+        List<Update> onNextEvents1 = testSubscriber1.values();
+        List<Update> onNextEvents2 = testSubscriber2.values();
+        List<Update> onNextEvents3 = testSubscriber3.values();
 
         // test subscriber 1
         testSubscriber1.assertValueCount(3);
 
-        FlowableList.Update reload1 = onNextEvents1.get(0);
-        FlowableList.Update insert5 = onNextEvents1.get(1);
-        FlowableList.Update insert61 = onNextEvents1.get(2);
+        Update reload1 = onNextEvents1.get(0);
+        Update insert5 = onNextEvents1.get(1);
+        Update insert61 = onNextEvents1.get(2);
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), reload1.changes);
+        assertEquals(Arrays.asList(Change.reloaded()), reload1.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4), reload1.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.inserted(4)), insert5.changes);
+        assertEquals(Arrays.asList(Change.inserted(4)), insert5.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4, 5), insert5.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.inserted(5)), insert61.changes);
+        assertEquals(Arrays.asList(Change.inserted(5)), insert61.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6), insert61.list);
 
         // test subscriber 2
         testSubscriber2.assertValueCount(3);
 
-        FlowableList.Update reload2 = onNextEvents2.get(0);
-        FlowableList.Update insert62 = onNextEvents2.get(1);
-        FlowableList.Update insert72 = onNextEvents2.get(2);
+        Update reload2 = onNextEvents2.get(0);
+        Update insert62 = onNextEvents2.get(1);
+        Update insert72 = onNextEvents2.get(2);
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), reload2.changes);
+        assertEquals(Arrays.asList(Change.reloaded()), reload2.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4, 5), reload2.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.inserted(5)), insert62.changes);
+        assertEquals(Arrays.asList(Change.inserted(5)), insert62.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6), insert62.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.inserted(6)), insert72.changes);
+        assertEquals(Arrays.asList(Change.inserted(6)), insert72.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6, 7), insert72.list);
 
         // test subscriber 3
         testSubscriber3.assertValueCount(2);
 
-        FlowableList.Update reload3 = onNextEvents3.get(0);
-        FlowableList.Update insert73 = onNextEvents3.get(1);
+        Update reload3 = onNextEvents3.get(0);
+        Update insert73 = onNextEvents3.get(1);
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), reload3.changes);
+        assertEquals(Arrays.asList(Change.reloaded()), reload3.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6), reload3.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.inserted(6)), insert73.changes);
+        assertEquals(Arrays.asList(Change.inserted(6)), insert73.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6, 7), insert73.list);
     }
 
@@ -403,7 +403,7 @@ public class ConcatFlowableListTest
         b.add(3);
         b.add(4);
 
-        FlowableList<?> list = FlowableLists.concat(Arrays.<FlowableList<Integer>>asList(a, b));
+        FlowableList<?> list = FlowableList.concat(Arrays.<FlowableList<Integer>>asList(a, b));
         TestSubscriber testSubscriber1 = new TestSubscriber();
         TestSubscriber testSubscriber2 = new TestSubscriber();
 
@@ -417,35 +417,35 @@ public class ConcatFlowableListTest
 
         b.add(7);
 
-        List<FlowableList.Update> onNextEvents1 = testSubscriber1.values();
-        List<FlowableList.Update> onNextEvents2 = testSubscriber2.values();
+        List<Update> onNextEvents1 = testSubscriber1.values();
+        List<Update> onNextEvents2 = testSubscriber2.values();
 
         // test subscriber 1
         testSubscriber1.assertValueCount(3);
 
-        FlowableList.Update reload1 = onNextEvents1.get(0);
-        FlowableList.Update insert5 = onNextEvents1.get(1);
-        FlowableList.Update insert6 = onNextEvents1.get(2);
+        Update reload1 = onNextEvents1.get(0);
+        Update insert5 = onNextEvents1.get(1);
+        Update insert6 = onNextEvents1.get(2);
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), reload1.changes);
+        assertEquals(Arrays.asList(Change.reloaded()), reload1.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4), reload1.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.inserted(4)), insert5.changes);
+        assertEquals(Arrays.asList(Change.inserted(4)), insert5.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4, 5), insert5.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.inserted(5)), insert6.changes);
+        assertEquals(Arrays.asList(Change.inserted(5)), insert6.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6), insert6.list);
 
         // test subscriber 2
         testSubscriber2.assertValueCount(2);
 
-        FlowableList.Update reload2 = onNextEvents2.get(0);
-        FlowableList.Update insert72 = onNextEvents2.get(1);
+        Update reload2 = onNextEvents2.get(0);
+        Update insert72 = onNextEvents2.get(1);
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), reload2.changes);
+        assertEquals(Arrays.asList(Change.reloaded()), reload2.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6), reload2.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.inserted(6)), insert72.changes);
+        assertEquals(Arrays.asList(Change.inserted(6)), insert72.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6, 7), insert72.list);
     }
 
@@ -467,16 +467,16 @@ public class ConcatFlowableListTest
         c.add(7);
         c.add(8);
 
-        FlowableList<?> list = FlowableLists.concat(Arrays.<FlowableList<Integer>>asList(a, b, c));
+        FlowableList<?> list = FlowableList.concat(Arrays.<FlowableList<Integer>>asList(a, b, c));
         TestSubscriber testSubscriber = new TestSubscriber();
 
         list.updates().subscribe(testSubscriber);
 
         testSubscriber.assertValueCount(1);
 
-        List<FlowableList.Update> onNextEvents = testSubscriber.values();
+        List<Update> onNextEvents = testSubscriber.values();
 
-        FlowableList.Update reload = onNextEvents.get(0);
+        Update reload = onNextEvents.get(0);
 
         assertEquals(reload.list, Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8));
         assertNotEquals(reload.list, Arrays.asList(1, 2, 3, 4, 5, 6, 7));

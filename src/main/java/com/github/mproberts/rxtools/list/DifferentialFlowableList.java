@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-class DifferentialFlowableList<T> implements FlowableList<T>
+class DifferentialFlowableList<T> extends FlowableList<T>
 {
     private final boolean _alwaysReload;
     private final Flowable<Update<T>> _diffTransform;

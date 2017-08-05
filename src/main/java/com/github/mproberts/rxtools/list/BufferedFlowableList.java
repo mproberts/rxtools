@@ -9,7 +9,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-class BufferedFlowableList<T> implements FlowableList<T>
+class BufferedFlowableList<T> extends FlowableList<T>
 {
     private final FlowableList<T> _list;
     private final long _timeSpan;

@@ -5,7 +5,7 @@ import java.util.List;
 import io.reactivex.Flowable;
 import io.reactivex.functions.Function;
 
-class TransformFlowableList<K, V> implements FlowableList<V>
+class TransformFlowableList<K, V> extends FlowableList<V>
 {
     private final FlowableList<K> _list;
     private final Function<List<K>, List<V>> _mappingMethod;

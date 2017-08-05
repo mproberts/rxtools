@@ -4,7 +4,7 @@ import io.reactivex.Flowable;
 import io.reactivex.functions.Function;
 import org.reactivestreams.Publisher;
 
-class FlatMapFlowableList<T> implements FlowableList<T>
+class FlatMapFlowableList<T> extends FlowableList<T>
 {
     private final Flowable<? extends FlowableList<T>> _list;
 

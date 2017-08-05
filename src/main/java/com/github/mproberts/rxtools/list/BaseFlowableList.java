@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 
-class BaseFlowableList<T> implements FlowableList<T>
+class BaseFlowableList<T> extends FlowableList<T>
 {
     private List<T> _previousList = null;
 

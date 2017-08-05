@@ -16,10 +16,10 @@ public class TransformFlowableListTest
     @Test
     public void testBasicTransform()
     {
-        TestSubscriber<FlowableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
+        TestSubscriber<Update<Integer>> testSubscriber = new TestSubscriber<>();
 
         SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3));
-        FlowableList<Integer> transformedList = FlowableLists.transform(list, new Function<Integer, Integer>() {
+        FlowableList<Integer> transformedList = list.transform(new Function<Integer, Integer>() {
             @Override
             public Integer apply(Integer integer) {
                 return integer + 12;
@@ -30,16 +30,16 @@ public class TransformFlowableListTest
 
         testSubscriber.assertValueCount(1);
 
-        List<FlowableList.Update<Integer>> onNextEvents = testSubscriber.values();
+        List<Update<Integer>> onNextEvents = testSubscriber.values();
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), onNextEvents.get(0).changes);
+        assertEquals(Arrays.asList(Change.reloaded()), onNextEvents.get(0).changes);
         assertEquals(Arrays.asList(13, 14, 15), onNextEvents.get(0).list);
     }
 
     @Test
     public void testSubjectMapTransform()
     {
-        TestSubscriber<FlowableList.Update<Flowable<String>>> testSubscriber = new TestSubscriber<>();
+        TestSubscriber<Update<Flowable<String>>> testSubscriber = new TestSubscriber<>();
 
         TestSubscriber<String> subscriber0 = new TestSubscriber<>();
         TestSubscriber<String> subscriber1 = new TestSubscriber<>();
@@ -47,14 +47,14 @@ public class TransformFlowableListTest
 
         SubjectMap<Integer, String> subjectMap = new SubjectMap<>();
         SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3));
-        FlowableList<Flowable<String>> transformedList = FlowableLists.transform(list, subjectMap);
+        FlowableList<Flowable<String>> transformedList = list.transform(subjectMap);
 
         transformedList.updates().subscribe(testSubscriber);
 
         testSubscriber.assertValueCount(1);
 
-        List<FlowableList.Update<Flowable<String>>> onNextEvents = testSubscriber.values();
-        FlowableList.Update<Flowable<String>> update = onNextEvents.get(0);
+        List<Update<Flowable<String>>> onNextEvents = testSubscriber.values();
+        Update<Flowable<String>> update = onNextEvents.get(0);
 
         Flowable<String> value0 = update.list.get(0);
         Flowable<String> value1 = update.list.get(1);
@@ -68,7 +68,7 @@ public class TransformFlowableListTest
         subjectMap.onNext(2, "B");
         subjectMap.onNext(3, "C");
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), update.changes);
+        assertEquals(Arrays.asList(Change.reloaded()), update.changes);
         assertEquals("A", subscriber0.values().get(0));
         assertEquals("B", subscriber1.values().get(0));
         assertEquals("C", subscriber2.values().get(0));

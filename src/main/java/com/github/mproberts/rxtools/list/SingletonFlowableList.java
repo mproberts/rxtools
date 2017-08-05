@@ -5,7 +5,7 @@ import io.reactivex.Flowable;
 
 import java.util.List;
 
-class SingletonFlowableList<T> implements FlowableList<T>
+class SingletonFlowableList<T> extends FlowableList<T>
 {
     private final Flowable<Update<T>> _justReloadObservable;
 

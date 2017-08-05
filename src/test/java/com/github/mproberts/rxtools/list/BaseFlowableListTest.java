@@ -29,7 +29,7 @@ public class BaseFlowableListTest
     public void testBasicAdd()
     {
         final AtomicInteger counter = new AtomicInteger(0);
-        TestSubscriber<FlowableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
+        TestSubscriber<Update<Integer>> testSubscriber = new TestSubscriber<>();
 
         list.updates().subscribe(testSubscriber);
 
@@ -37,16 +37,16 @@ public class BaseFlowableListTest
         list.add(counter.incrementAndGet());
 
         testSubscriber.assertValues(
-                new FlowableList.Update<>(Arrays.<Integer>asList(), FlowableList.Change.reloaded()),
-                new FlowableList.Update<>(Arrays.asList(1), FlowableList.Change.inserted(0)),
-                new FlowableList.Update<>(Arrays.asList(1, 2), FlowableList.Change.inserted(1)));
+                new Update<>(Arrays.<Integer>asList(), Change.reloaded()),
+                new Update<>(Arrays.asList(1), Change.inserted(0)),
+                new Update<>(Arrays.asList(1, 2), Change.inserted(1)));
     }
 
     @Test
     public void testBatchAddRemove()
     {
         final AtomicInteger counter = new AtomicInteger(0);
-        TestSubscriber<FlowableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
+        TestSubscriber<Update<Integer>> testSubscriber = new TestSubscriber<>();
 
         list.updates().subscribe(testSubscriber);
 
@@ -62,12 +62,12 @@ public class BaseFlowableListTest
         });
 
         testSubscriber.assertValues(
-                new FlowableList.Update<>(Arrays.<Integer>asList(), FlowableList.Change.reloaded()),
-                new FlowableList.Update<>(Arrays.asList(1, 3), Arrays.asList(
-                        FlowableList.Change.inserted(0),
-                        FlowableList.Change.inserted(1),
-                        FlowableList.Change.removed(1),
-                        FlowableList.Change.inserted(1)
+                new Update<>(Arrays.<Integer>asList(), Change.reloaded()),
+                new Update<>(Arrays.asList(1, 3), Arrays.asList(
+                        Change.inserted(0),
+                        Change.inserted(1),
+                        Change.removed(1),
+                        Change.inserted(1)
                 )));
     }
 
@@ -76,7 +76,7 @@ public class BaseFlowableListTest
     {
         final int iterations = 100;
         final AtomicInteger counter = new AtomicInteger(0);
-        TestSubscriber<FlowableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
+        TestSubscriber<Update<Integer>> testSubscriber = new TestSubscriber<>();
         ExecutorService executorService = Executors.newFixedThreadPool(iterations / 4);
 
         List<Callable<Object>> callbales = new ArrayList<>();
@@ -102,7 +102,7 @@ public class BaseFlowableListTest
 
         executorService.invokeAll(callbales);
 
-        testSubscriber.assertValue(new FlowableList.Update<>(allEntries, FlowableList.Change.inserted(iterations - 1)));
+        testSubscriber.assertValue(new Update<>(allEntries, Change.inserted(iterations - 1)));
     }
 
     @Test
@@ -110,7 +110,7 @@ public class BaseFlowableListTest
     {
         final int iterations = 1000;
         final AtomicInteger counter = new AtomicInteger(0);
-        TestSubscriber<FlowableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
+        TestSubscriber<Update<Integer>> testSubscriber = new TestSubscriber<>();
         ExecutorService executorService = Executors.newFixedThreadPool(25);
 
         List<Callable<Object>> callbales = new ArrayList<>();
@@ -131,8 +131,8 @@ public class BaseFlowableListTest
 
         executorService.invokeAll(callbales);
 
-        List<FlowableList.Update<Integer>> events = testSubscriber.values();
-        FlowableList.Update<Integer> lastEvent = events.get(events.size() - 1);
+        List<Update<Integer>> events = testSubscriber.values();
+        Update<Integer> lastEvent = events.get(events.size() - 1);
         List<Integer> list = lastEvent.list;
 
         for (int i = 0; i < iterations; ++i) {

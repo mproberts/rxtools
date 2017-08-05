@@ -58,7 +58,7 @@ public class VisibilityStateFlowableListTest
         VisibleItem<Integer> item4 = new VisibleItem<>(4, true);
 
         SimpleFlowableList<VisibleItem<Integer>> simpleList = new SimpleFlowableList<>();
-        FlowableList<Integer> list = FlowableLists.collapseVisibility(simpleList);
+        FlowableList<Integer> list = FlowableList.collapseVisibility(simpleList);
         TestSubscriber testSubscriber = new TestSubscriber();
 
         simpleList.add(item1);
@@ -68,12 +68,12 @@ public class VisibilityStateFlowableListTest
 
         list.updates().subscribe(testSubscriber);
 
-        List<FlowableList.Update> onNextEvents = testSubscriber.values();
+        List<Update> onNextEvents = testSubscriber.values();
         testSubscriber.assertValueCount(1);
 
-        FlowableList.Update update = onNextEvents.get(0);
+        Update update = onNextEvents.get(0);
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), update.changes);
+        assertEquals(Arrays.asList(Change.reloaded()), update.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4), update.list);
     }
 
@@ -87,7 +87,7 @@ public class VisibilityStateFlowableListTest
         VisibleItem<Integer> item5 = new VisibleItem<>(5, true);
 
         SimpleFlowableList<VisibleItem<Integer>> simpleList = new SimpleFlowableList<>();
-        FlowableList<Integer> list = FlowableLists.collapseVisibility(simpleList);
+        FlowableList<Integer> list = FlowableList.collapseVisibility(simpleList);
         TestSubscriber testSubscriber = new TestSubscriber();
 
         simpleList.add(item1);
@@ -102,24 +102,24 @@ public class VisibilityStateFlowableListTest
         item3.setIsVisible(false);
         item5.setIsVisible(false);
 
-        List<FlowableList.Update> onNextEvents = testSubscriber.values();
+        List<Update> onNextEvents = testSubscriber.values();
         testSubscriber.assertValueCount(4);
 
-        FlowableList.Update update1 = onNextEvents.get(0);
-        FlowableList.Update update2 = onNextEvents.get(1);
-        FlowableList.Update update3 = onNextEvents.get(2);
-        FlowableList.Update update4 = onNextEvents.get(3);
+        Update update1 = onNextEvents.get(0);
+        Update update2 = onNextEvents.get(1);
+        Update update3 = onNextEvents.get(2);
+        Update update4 = onNextEvents.get(3);
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), update1.changes);
+        assertEquals(Arrays.asList(Change.reloaded()), update1.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4, 5), update1.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.removed(1)), update2.changes);
+        assertEquals(Arrays.asList(Change.removed(1)), update2.changes);
         assertEquals(Arrays.asList(1, 3, 4, 5), update2.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.removed(1)), update3.changes);
+        assertEquals(Arrays.asList(Change.removed(1)), update3.changes);
         assertEquals(Arrays.asList(1, 4, 5), update3.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.removed(2)), update4.changes);
+        assertEquals(Arrays.asList(Change.removed(2)), update4.changes);
         assertEquals(Arrays.asList(1, 4), update4.list);
     }
 
@@ -131,7 +131,7 @@ public class VisibilityStateFlowableListTest
         VisibleItem<Integer> item3 = new VisibleItem<>(3, true);
 
         SimpleFlowableList<VisibleItem<Integer>> simpleList = new SimpleFlowableList<>();
-        FlowableList<Integer> list = FlowableLists.collapseVisibility(simpleList);
+        FlowableList<Integer> list = FlowableList.collapseVisibility(simpleList);
         TestSubscriber testSubscriber = new TestSubscriber();
 
         simpleList.add(item1);
@@ -144,24 +144,24 @@ public class VisibilityStateFlowableListTest
         item2.setIsVisible(true);
         item3.setIsVisible(false);
 
-        List<FlowableList.Update> onNextEvents = testSubscriber.values();
+        List<Update> onNextEvents = testSubscriber.values();
         testSubscriber.assertValueCount(4);
 
-        FlowableList.Update update1 = onNextEvents.get(0);
-        FlowableList.Update update2 = onNextEvents.get(1);
-        FlowableList.Update update3 = onNextEvents.get(2);
-        FlowableList.Update update4 = onNextEvents.get(3);
+        Update update1 = onNextEvents.get(0);
+        Update update2 = onNextEvents.get(1);
+        Update update3 = onNextEvents.get(2);
+        Update update4 = onNextEvents.get(3);
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), update1.changes);
+        assertEquals(Arrays.asList(Change.reloaded()), update1.changes);
         assertEquals(Arrays.asList(1, 2, 3), update1.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.removed(1)), update2.changes);
+        assertEquals(Arrays.asList(Change.removed(1)), update2.changes);
         assertEquals(Arrays.asList(1, 3), update2.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.inserted(1)), update3.changes);
+        assertEquals(Arrays.asList(Change.inserted(1)), update3.changes);
         assertEquals(Arrays.asList(1, 2, 3), update3.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.removed(2)), update4.changes);
+        assertEquals(Arrays.asList(Change.removed(2)), update4.changes);
         assertEquals(Arrays.asList(1, 2), update4.list);
     }
 
@@ -173,7 +173,7 @@ public class VisibilityStateFlowableListTest
         VisibleItem<Integer> item3 = new VisibleItem<>(3, true);
 
         SimpleFlowableList<VisibleItem<Integer>> simpleList = new SimpleFlowableList<>();
-        FlowableList<Integer> list = FlowableLists.collapseVisibility(simpleList);
+        FlowableList<Integer> list = FlowableList.collapseVisibility(simpleList);
         TestSubscriber testSubscriber = new TestSubscriber();
 
         simpleList.add(item1);
@@ -184,16 +184,16 @@ public class VisibilityStateFlowableListTest
 
         simpleList.remove(1);
 
-        List<FlowableList.Update> onNextEvents = testSubscriber.values();
+        List<Update> onNextEvents = testSubscriber.values();
         testSubscriber.assertValueCount(2);
 
-        FlowableList.Update update1 = onNextEvents.get(0);
-        FlowableList.Update update2 = onNextEvents.get(1);
+        Update update1 = onNextEvents.get(0);
+        Update update2 = onNextEvents.get(1);
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), update1.changes);
+        assertEquals(Arrays.asList(Change.reloaded()), update1.changes);
         assertEquals(Arrays.asList(1, 2, 3), update1.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.removed(1)), update2.changes);
+        assertEquals(Arrays.asList(Change.removed(1)), update2.changes);
         assertEquals(Arrays.asList(1, 3), update2.list);
     }
 
@@ -206,7 +206,7 @@ public class VisibilityStateFlowableListTest
         VisibleItem<Integer> hidden1 = new VisibleItem<>(4, false);
 
         SimpleFlowableList<VisibleItem<Integer>> simpleList = new SimpleFlowableList<>();
-        FlowableList<Integer> list = FlowableLists.collapseVisibility(simpleList);
+        FlowableList<Integer> list = FlowableList.collapseVisibility(simpleList);
         TestSubscriber testSubscriber = new TestSubscriber();
 
         simpleList.add(item3);
@@ -217,20 +217,20 @@ public class VisibilityStateFlowableListTest
         simpleList.add(1, item2);
         simpleList.add(1, hidden1);
 
-        List<FlowableList.Update> onNextEvents = testSubscriber.values();
+        List<Update> onNextEvents = testSubscriber.values();
         testSubscriber.assertValueCount(3);
 
-        FlowableList.Update update1 = onNextEvents.get(0);
-        FlowableList.Update update2 = onNextEvents.get(1);
-        FlowableList.Update update3 = onNextEvents.get(2);
+        Update update1 = onNextEvents.get(0);
+        Update update2 = onNextEvents.get(1);
+        Update update3 = onNextEvents.get(2);
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), update1.changes);
+        assertEquals(Arrays.asList(Change.reloaded()), update1.changes);
         assertEquals(Arrays.asList(3), update1.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.inserted(0)), update2.changes);
+        assertEquals(Arrays.asList(Change.inserted(0)), update2.changes);
         assertEquals(Arrays.asList(1, 3), update2.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.inserted(1)), update3.changes);
+        assertEquals(Arrays.asList(Change.inserted(1)), update3.changes);
         assertEquals(Arrays.asList(1, 2, 3), update3.list);
     }
 
@@ -243,7 +243,7 @@ public class VisibilityStateFlowableListTest
         VisibleItem<Integer> item4 = new VisibleItem<>(4, true);
 
         SimpleFlowableList<VisibleItem<Integer>> simpleList = new SimpleFlowableList<>();
-        FlowableList<Integer> list = FlowableLists.collapseVisibility(simpleList);
+        FlowableList<Integer> list = FlowableList.collapseVisibility(simpleList);
         TestSubscriber testSubscriber = new TestSubscriber();
 
         simpleList.add(item1);
@@ -257,24 +257,24 @@ public class VisibilityStateFlowableListTest
         simpleList.move(2, 0);
         simpleList.move(0, 3);
 
-        List<FlowableList.Update> onNextEvents = testSubscriber.values();
+        List<Update> onNextEvents = testSubscriber.values();
         testSubscriber.assertValueCount(4);
 
-        FlowableList.Update update1 = onNextEvents.get(0);
-        FlowableList.Update update2 = onNextEvents.get(1);
-        FlowableList.Update update3 = onNextEvents.get(2);
-        FlowableList.Update update4 = onNextEvents.get(3);
+        Update update1 = onNextEvents.get(0);
+        Update update2 = onNextEvents.get(1);
+        Update update3 = onNextEvents.get(2);
+        Update update4 = onNextEvents.get(3);
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), update1.changes);
+        assertEquals(Arrays.asList(Change.reloaded()), update1.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4), update1.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.moved(0, 1)), update2.changes);
+        assertEquals(Arrays.asList(Change.moved(0, 1)), update2.changes);
         assertEquals(Arrays.asList(2, 1, 3, 4), update2.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.moved(2, 0)), update3.changes);
+        assertEquals(Arrays.asList(Change.moved(2, 0)), update3.changes);
         assertEquals(Arrays.asList(3, 2, 1, 4), update3.list);
 
-        assertEquals(Arrays.asList(FlowableList.Change.moved(0, 3)), update4.changes);
+        assertEquals(Arrays.asList(Change.moved(0, 3)), update4.changes);
         assertEquals(Arrays.asList(2, 1, 4, 3), update4.list);
     }
 }

@@ -1,217 +1,192 @@
 package com.github.mproberts.rxtools.list;
 
 import com.github.mproberts.rxtools.map.SubjectMap;
+import com.github.mproberts.rxtools.types.Item;
 import io.reactivex.Flowable;
+import io.reactivex.Scheduler;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
+import io.reactivex.functions.Function3;
 
-import java.util.Collections;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Represents a list with changes to the underlying dataset being emitted as updates including
  * a copy of the data and a changeset to transform from one list state to the next.
  * @param <T> The value type of the list
  */
-public interface FlowableList<T>
+public abstract class FlowableList<T>
 {
-    /**
-     * A change is a single modification to a list which transforms it from one state to the next
-     */
-    class Change
-    {
-        /**
-         * The type of the change dictates which behaviour to apply to the list
-         */
-        public enum Type
-        {
-            Moved,
-            Inserted,
-            Removed,
-            Reloaded
-        }
-
-        public final Type type;
-        public final int from;
-        public final int to;
-
-        /**
-         *
-         * @param from
-         * @param to
-         * @return
-         */
-        public static Change moved(int from, int to)
-        {
-            return new Change(Type.Moved, from, to);
-        }
-
-        /**
-         *
-         * @param to
-         * @return
-         */
-        public static Change inserted(int to)
-        {
-            return new Change(Type.Inserted, to, to);
-        }
-
-        /**
-         *
-         * @param from
-         * @return
-         */
-        public static Change removed(int from)
-        {
-            return new Change(Type.Removed, from, from);
-        }
-
-        /**
-         *
-         * @return
-         */
-        public static Change reloaded()
-        {
-            return new Change(Type.Reloaded, Integer.MIN_VALUE, Integer.MIN_VALUE);
-        }
-
-        Change(Type type, int from, int to)
-        {
-            this.type = type;
-            this.from = from;
-            this.to = to;
-        }
-
-        @Override
-        public String toString()
-        {
-            switch (type) {
-                case Moved:
-                    return "moved(" + from + " -> " + to + ")";
-                case Inserted:
-                    return "inserted(" + to + ")";
-                case Removed:
-                    return "removed(" + from + ")";
-                default:
-                    return "reloaded";
-            }
-        }
-
-        @Override
-        public boolean equals(Object obj)
-        {
-            if (!(obj instanceof Change)) {
-                return false;
-            }
-
-            Change other = (Change) obj;
-
-            return other.type == type
-                    && other.from == from
-                    && other.to == to;
-        }
-
-        @Override
-        public int hashCode()
-        {
-            int typeId = 0;
-
-            switch (type) {
-                case Moved:
-                    typeId = 0;
-                    break;
-                case Inserted:
-                    typeId = 1;
-                    break;
-                case Removed:
-                    typeId = 2;
-                    break;
-                case Reloaded:
-                    typeId = 3;
-                    break;
-            }
-
-            return (typeId << 3) | (from) | (to << 16);
-        }
-    }
-
-    /**
-     * An update represents the delta between the previous list state and the new list
-     * state, including an immutable copy of the new state.
-     *
-     * The change list may contain any number of changes and is designed such that:
-     * L0 + C1 + C2 + C3 = L, where L0 is the previous update emitted from the
-     * list and C1, ... are the changes contained within the update.
-     *
-     * The list contained within the update is immutable. A new list will be sent with
-     * every update, this should be taken into consideration when using observable lists
-     * as you may wish to use an ID as the value of your list and map the value using a
-     * repository of some kind. A {@link SubjectMap} is a
-     * useful candidate for applying this pattern.
-     * @param <T> The type of values contained in the list
-     */
-    final class Update<T>
-    {
-        /**
-         * The current state of the underlying list
-         */
-        public final List<T> list;
-
-        /**
-         * The set of changes which, when applied to the prior state, produce the new list
-         */
-        public final List<Change> changes;
-
-        Update(List<T> list, Change change)
-        {
-            this(list, Collections.singletonList(change));
-        }
-
-        Update(List<T> list, List<Change> changes)
-        {
-            this.list = list;
-            this.changes = changes;
-        }
-
-        @Override
-        public String toString()
-        {
-            StringBuilder builder = new StringBuilder();
-
-            for (Change change : changes) {
-                if (builder.length() > 0) {
-                    builder.append(", ");
-                }
-
-                builder.append(change.toString());
-            }
-
-            return "list=[" + list.size() + "], changes={" + builder.toString() + "}";
-        }
-
-        @Override
-        public boolean equals(Object obj)
-        {
-            if (!(obj instanceof Update)) {
-                return false;
-            }
-
-            Update other = (Update) obj;
-
-            return other.list.equals(list)
-                    && other.changes.equals(changes);
-        }
-
-        @Override
-        public int hashCode()
-        {
-            return list.hashCode() | (changes.hashCode() << 16);
-        }
-    }
-
     /**
      * A stream of updates that represent all changes to the underlying list. When first subscribed,
      * the list will emit a reload event immediately, if there is an existing state for the list
      * already available.
      * @return An Flowable bound to the update stream of the list
      */
-    Flowable<Update<T>> updates();
+    public abstract Flowable<Update<T>> updates();
+
+    /**
+     * Creates an FlowableList which will contain all and only the provided list items
+     * @param list The list of items to wrap
+     * @return The wrapped FlowableList
+     */
+    public static <T> FlowableList<T> of(List<T> list)
+    {
+        return new SingletonFlowableList<>(list);
+    }
+
+    /**
+     * See {@link #of(List) of}.
+     */
+    public static <T> FlowableList<T> of(T... list)
+    {
+        return of(Arrays.asList(list));
+    }
+
+    public static FlowableList concatGeneric(FlowableList<? extends FlowableList> list)
+    {
+        return new ConcatFlowableList((FlowableList) list);
+    }
+
+    /**
+     * Joins the list of lists into an FlowableList of all values contained within the list of lists. Change
+     * events for individual and lists of items are automatically propagated to subscribers to the concatenated
+     * result list.
+     * @param list The list of items to wrap
+     * @param <T> The type of elements
+     * @return A new FlowableList with the contents of all supplied lists
+     */
+    @SuppressWarnings("unchecked cast")
+    public static <T> FlowableList<T> concat(FlowableList<? extends FlowableList<T>> list)
+    {
+        return new ConcatFlowableList((FlowableList) list);
+    }
+
+    /**
+     * Transforms an FlowableList containing VisibilityState items into an FlowableList
+     * which includes in its emissions the changes in visibility status of the items within the
+     * original list
+     * @param list The list to wrap
+     * @return A new FlowableList
+     */
+    public static <T> FlowableList<T> flatten(Flowable<? extends FlowableList<T>> list)
+    {
+        return new FlatMapFlowableList<>(list);
+    }
+
+    /**
+     * Transforms an FlowableList containing VisibilityState items into an FlowableList
+     * which includes in its emissions the changes in visibility status of the items within the
+     * original list
+     * @param list The list to wrap
+     * @return A new FlowableList
+     */
+    @SuppressWarnings("unchecked cast")
+    public static <T, S extends FlowableList<? extends VisibilityState<T>>> FlowableList<T> collapseVisibility(S list)
+    {
+        return new VisibilityStateFlowableList<>((FlowableList<VisibilityState<T>>) list);
+    }
+
+    /**
+     * Observes a stream of type List and computes the diff between successive emissions. The
+     * wrapped FlowableList will emit the new list state when new emissions are available
+     * along with the diff which transforms the previous into the next state.
+     * @param list The list to wrap
+     * @return A new FlowableList
+     */
+    public static <T> FlowableList<T> diff(Flowable<List<T>> list)
+    {
+        return new DifferentialFlowableList<>(list);
+    }
+
+    /**
+     * See {@link #concat(FlowableList) concat}.
+     */
+    public static <T> FlowableList concat(List<? extends FlowableList<T>> lists)
+    {
+        return concat(of(lists));
+    }
+
+    /**
+     * Wraps the supplied list, calling the transform method when the get method is called for a specific index.
+     * @param transform A function transforming the source to the target type
+     * @param <R> The type of the mapped value
+     * @return A new FlowableList which has values mapped via the supplied transform
+     */
+    public <R> FlowableList<R> transform(final Function<T, R> transform)
+    {
+        final FlowableList<T> list = this;
+
+        return new TransformFlowableList<>(list, new Function<List<T>, List<R>>() {
+            @Override
+            public List<R> apply(List<T> list)
+            {
+                return new TransformList.SimpleTransformList<>(list, transform);
+            }
+        });
+    }
+
+    public <R> FlowableList<R> indexedTransform(final Function3<T, Flowable<Item<T>>, Flowable<Item<T>>, R> transform)
+    {
+        return new IndexedFlowableList<>(this, transform);
+    }
+
+    /**
+     * Calls the supplied prefetch method on the amount before and after a requested index on every get call. This is
+     * useful for flowable lists of indexes which can be prefetched before a scroll event or as a new batch of content
+     * is requested.
+     * @param fetcher The prefetching method to run on each requested item
+     * @param beforeAmount The number of items to prefetch after the current index
+     * @param afterAmount The number of items to prefetch after the current index
+     * @return
+     */
+    public FlowableList<T> prefetch(final int beforeAmount, final int afterAmount, final Consumer<Collection<T>> fetcher)
+    {
+        final FlowableList<T> list = this;
+
+        return new TransformFlowableList<>(list, new Function<List<T>, List<T>>() {
+            @Override
+            public List<T> apply(List<T> list) throws Exception {
+                return new PrefetchList<>(list, beforeAmount, afterAmount, fetcher);
+            }
+        });
+    }
+
+    /**
+     * See {@link #transform(Function transform}.
+     * @param list The list to wrap
+     * @param mapping A SubjectMap used to maps input keys onto observable values
+     * @param <R> The type of the mapped value
+     * @return A new FlowableList which has values mapped via the supplied SubjectMap
+     */
+    public <R> FlowableList<Flowable<R>> transform(final SubjectMap<T, R> mapping)
+    {
+        return transform(new Function<T, Flowable<R>>() {
+            @Override
+            public Flowable<R> apply(T t)
+            {
+                return mapping.get(t);
+            }
+        });
+    }
+
+    /**
+     * Wraps the supplied list with the ability to buffer update to the underlying list for the provided timespan
+     * emitting a single changeset when the buffer period elapses
+     * @param timespan
+     *            the period of time each buffer collects items before it is emitted and replaced with a new
+     *            buffer
+     * @param unit
+     *            the unit of time which applies to the {@code timespan} argument
+     * @param scheduler
+     *            the {@link Scheduler} to use when determining the end and start of a buffer
+     * @return A new observable with the buffer window applied to all updates
+     */
+    public FlowableList<T> buffer(long timespan, TimeUnit unit, Scheduler scheduler)
+    {
+        return new BufferedFlowableList<>(this, timespan, unit, scheduler);
+    }
 }
