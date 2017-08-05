@@ -118,8 +118,8 @@ public abstract class ListImplementationTest
                 fail();
             }
 
-            assertEquals(iterator1.next(), iterator2.next());
             assertEquals(iterator1.nextIndex(), iterator2.nextIndex());
+            assertEquals(iterator1.next(), iterator2.next());
         }
 
         // run it backwards
@@ -128,8 +128,8 @@ public abstract class ListImplementationTest
                 fail();
             }
 
-            assertEquals(iterator1.previous(), iterator2.previous());
             assertEquals(iterator1.previousIndex(), iterator2.previousIndex());
+            assertEquals(iterator1.previous(), iterator2.previous());
         }
     }
 

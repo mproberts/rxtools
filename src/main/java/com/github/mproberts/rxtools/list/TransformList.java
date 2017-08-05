@@ -7,15 +7,48 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 
-class TransformList<K, V> implements List<V>
+abstract class TransformList<K, V> implements List<V>
 {
+    static class SimpleTransformList<K, V> extends TransformList<K, V>
+    {
+        private final Function<K, V> _transform;
+
+        SimpleTransformList(List<K> list, Function<K, V> transform)
+        {
+            super(list);
+
+            _transform = transform;
+        }
+
+        @Override
+        protected V transform(K value, int index)
+        {
+            try {
+                return _transform.apply(value);
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            return null;
+        }
+
+        @Override
+        public List<V> subList(int fromIndex, int toIndex)
+        {
+            return new SimpleTransformList<>(getList().subList(fromIndex, toIndex), _transform);
+        }
+    }
+
     private class TransformIterator implements Iterator<V>
     {
         private final Iterator<K> _iterator;
+        private int _index;
 
         public TransformIterator(Iterator<K> iterator)
         {
             _iterator = iterator;
+            _index = 0;
         }
 
         @Override
@@ -28,13 +61,14 @@ class TransformList<K, V> implements List<V>
         public V next()
         {
             K next = _iterator.next();
+            ++_index;
 
             if (next == null) {
                 return null;
             }
 
             try {
-                return _transform.apply(next);
+                return transform(next, _index);
             }
             catch (Exception e) {
                 throw new RuntimeException(e);
@@ -67,7 +101,7 @@ class TransformList<K, V> implements List<V>
         public V next()
         {
             try {
-                return _transform.apply(_iterator.next());
+                return transform(_iterator.next(), _iterator.nextIndex());
             }
             catch (Exception e) {
                 throw new RuntimeException(e);
@@ -84,7 +118,7 @@ class TransformList<K, V> implements List<V>
         public V previous()
         {
             try {
-                return _transform.apply(_iterator.previous());
+                return transform(_iterator.previous(), _iterator.previousIndex());
             }
             catch (Exception e) {
                 throw new RuntimeException(e);
@@ -123,12 +157,12 @@ class TransformList<K, V> implements List<V>
     }
 
     private final List<K> _list;
-    private final Function<K, V> _transform;
 
-    TransformList(List<K> list, Function<K, V> transform)
+    abstract protected V transform(K value, int index);
+
+    TransformList(List<K> list)
     {
         _list = list;
-        _transform = transform;
     }
 
     @Override
@@ -204,11 +238,21 @@ class TransformList<K, V> implements List<V>
         return target;
     }
 
+    protected List<K> getList()
+    {
+        return _list;
+    }
+
+    protected K getInternal(int index)
+    {
+        return _list.get(index);
+    }
+
     @Override
     public V get(int index)
     {
         try {
-            return _transform.apply(_list.get(index));
+            return transform(_list.get(index), index);
         }
         catch (RuntimeException re) {
             throw re;
@@ -231,10 +275,7 @@ class TransformList<K, V> implements List<V>
     }
 
     @Override
-    public List<V> subList(int fromIndex, int toIndex)
-    {
-        return new TransformList<>(_list.subList(fromIndex, toIndex), _transform);
-    }
+    abstract public List<V> subList(int fromIndex, int toIndex);
 
     @Override
     public boolean contains(Object o)
