@@ -1,7 +1,27 @@
 package com.github.mproberts.rxtools.list;
 
-/**
- * Created by mproberts on 2017-08-04.
- */
-public class FlatMapFlowableList {
+import io.reactivex.Flowable;
+import io.reactivex.functions.Function;
+import org.reactivestreams.Publisher;
+
+class FlatMapFlowableList<T> implements FlowableList<T>
+{
+    private final Flowable<? extends FlowableList<T>> _list;
+
+    public FlatMapFlowableList(Flowable<? extends FlowableList<T>> list)
+    {
+        _list = list;
+    }
+
+    @Override
+    public Flowable<Update<T>> updates()
+    {
+        return _list.flatMap(new Function<FlowableList<T>, Publisher<Update<T>>>() {
+            @Override
+            public Publisher<Update<T>> apply(FlowableList<T> flowableList) throws Exception
+            {
+                return flowableList.updates();
+            }
+        });
+    }
 }
