@@ -1,76 +1,141 @@
 package com.github.mproberts.rxtools.list;
 
-import com.github.mproberts.rxtools.map.SubjectMap;
-import io.reactivex.Flowable;
+import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 import io.reactivex.subscribers.TestSubscriber;
 import org.junit.Test;
 
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
-public class TransformFlowableListTest
+public class PrefetchFlowableListTest
 {
     @Test
-    public void testBasicTransform()
+    public void testBasicPrefetch()
     {
+        final List<Integer> fetches = new ArrayList<>();
+        final List<Integer> prefetches = new ArrayList<>();
         TestSubscriber<FlowableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
 
-        SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3));
+        SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
         FlowableList<Integer> transformedList = FlowableLists.transform(list, new Function<Integer, Integer>() {
             @Override
-            public Integer apply(Integer integer) {
-                return integer + 12;
+            public Integer apply(Integer value) {
+                fetches.add(value);
+
+                return value;
             }
         });
 
-        transformedList.updates().subscribe(testSubscriber);
+        FlowableList<Integer> prefetchList = FlowableLists.prefetch(transformedList, 2, 3,
+                new Consumer<Collection<Integer>>() {
+                    @Override
+                    public void accept(Collection<Integer> integer) throws Exception {
+                        prefetches.addAll(integer);
+                    }
+                });
+
+        prefetchList.updates().subscribe(testSubscriber);
 
         testSubscriber.assertValueCount(1);
 
         List<FlowableList.Update<Integer>> onNextEvents = testSubscriber.values();
 
         assertEquals(Arrays.asList(FlowableList.Change.reloaded()), onNextEvents.get(0).changes);
-        assertEquals(Arrays.asList(13, 14, 15), onNextEvents.get(0).list);
+
+        List<Integer> list1 = onNextEvents.get(0).list;
+
+        int value = list1.get(3);
+
+        assertEquals(4, value);
+        assertEquals(Arrays.asList(4, 3, 2, 5, 6, 7), fetches);
+        assertEquals(Arrays.asList(3, 2, 5, 6, 7), prefetches);
     }
 
     @Test
-    public void testSubjectMapTransform()
+    public void testEmptyPrefetch()
     {
-        TestSubscriber<FlowableList.Update<Flowable<String>>> testSubscriber = new TestSubscriber<>();
+        final List<Integer> fetches = new ArrayList<>();
+        final List<Integer> prefetches = new ArrayList<>();
+        TestSubscriber<FlowableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
 
-        TestSubscriber<String> subscriber0 = new TestSubscriber<>();
-        TestSubscriber<String> subscriber1 = new TestSubscriber<>();
-        TestSubscriber<String> subscriber2 = new TestSubscriber<>();
+        SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+        FlowableList<Integer> transformedList = FlowableLists.transform(list, new Function<Integer, Integer>() {
+            @Override
+            public Integer apply(Integer value) {
+                fetches.add(value);
 
-        SubjectMap<Integer, String> subjectMap = new SubjectMap<>();
-        SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3));
-        FlowableList<Flowable<String>> transformedList = FlowableLists.transform(list, subjectMap);
+                return value;
+            }
+        });
 
-        transformedList.updates().subscribe(testSubscriber);
+        FlowableList<Integer> prefetchList = FlowableLists.prefetch(transformedList, 0, 0,
+                new Consumer<Collection<Integer>>() {
+                    @Override
+                    public void accept(Collection<Integer> integer) throws Exception {
+                        prefetches.addAll(integer);
+                    }
+                });
+
+        prefetchList.updates().subscribe(testSubscriber);
 
         testSubscriber.assertValueCount(1);
 
-        List<FlowableList.Update<Flowable<String>>> onNextEvents = testSubscriber.values();
-        FlowableList.Update<Flowable<String>> update = onNextEvents.get(0);
+        List<FlowableList.Update<Integer>> onNextEvents = testSubscriber.values();
 
-        Flowable<String> value0 = update.list.get(0);
-        Flowable<String> value1 = update.list.get(1);
-        Flowable<String> value2 = update.list.get(2);
+        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), onNextEvents.get(0).changes);
 
-        value0.subscribe(subscriber0);
-        value1.subscribe(subscriber1);
-        value2.subscribe(subscriber2);
+        List<Integer> list1 = onNextEvents.get(0).list;
 
-        subjectMap.onNext(1, "A");
-        subjectMap.onNext(2, "B");
-        subjectMap.onNext(3, "C");
+        int value = list1.get(3);
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), update.changes);
-        assertEquals("A", subscriber0.values().get(0));
-        assertEquals("B", subscriber1.values().get(0));
-        assertEquals("C", subscriber2.values().get(0));
+        assertEquals(4, value);
+        assertEquals(Collections.singletonList(4), fetches);
+        assertEquals(Collections.emptyList(), prefetches);
+    }
+
+    @Test
+    public void testLopSidedPrefetch()
+    {
+        final List<Integer> fetches = new ArrayList<>();
+        final List<Integer> prefetches = new ArrayList<>();
+        TestSubscriber<FlowableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
+
+        SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+        FlowableList<Integer> transformedList = FlowableLists.transform(list, new Function<Integer, Integer>() {
+            @Override
+            public Integer apply(Integer value) {
+                fetches.add(value);
+
+                return value;
+            }
+        });
+
+        FlowableList<Integer> prefetchList = FlowableLists.prefetch(transformedList, 0, 4,
+                new Consumer<Collection<Integer>>() {
+                    @Override
+                    public void accept(Collection<Integer> integer) throws Exception {
+                        prefetches.addAll(integer);
+                    }
+                });
+
+        prefetchList.updates().subscribe(testSubscriber);
+
+        testSubscriber.assertValueCount(1);
+
+        List<FlowableList.Update<Integer>> onNextEvents = testSubscriber.values();
+
+        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), onNextEvents.get(0).changes);
+
+        List<Integer> list1 = onNextEvents.get(0).list;
+
+        assertEquals(Integer.valueOf(4), list1.get(3));
+        assertEquals(Arrays.asList(4, 5, 6, 7, 8), fetches);
+        assertEquals(Arrays.asList(5, 6, 7, 8), prefetches);
+
+        assertEquals(Integer.valueOf(9), list1.get(8));
+        assertEquals(Arrays.asList(4, 5, 6, 7, 8, 9, 10), fetches);
+        assertEquals(Arrays.asList(5, 6, 7, 8, 10), prefetches);
     }
 }
