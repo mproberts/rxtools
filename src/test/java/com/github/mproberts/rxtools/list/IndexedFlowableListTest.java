@@ -1,76 +1,161 @@
 package com.github.mproberts.rxtools.list;
 
-import com.github.mproberts.rxtools.map.SubjectMap;
+import com.github.mproberts.rxtools.types.Item;
 import io.reactivex.Flowable;
-import io.reactivex.functions.Function;
+import io.reactivex.functions.BiFunction;
+import io.reactivex.functions.Function3;
 import io.reactivex.subscribers.TestSubscriber;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
-public class TransformFlowableListTest
+public class IndexedFlowableListTest
 {
-    @Test
-    public void testBasicTransform()
+    protected TestSubscriber<FlowableList.Update<Flowable<String>>> createIndexedListt(FlowableList<Integer> list)
     {
-        TestSubscriber<FlowableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
-
-        SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3));
-        FlowableList<Integer> transformedList = FlowableLists.transform(list, new Function<Integer, Integer>() {
+        FlowableList<Flowable<String>> transformedList = FlowableLists.indexedTransform(list, new Function3<Integer, Flowable<Item<Integer>>, Flowable<Item<Integer>>, Flowable<String>>() {
             @Override
-            public Integer apply(Integer integer) {
-                return integer + 12;
+            public Flowable<String> apply(final Integer item, Flowable<Item<Integer>> previousItem, Flowable<Item<Integer>> nextItem) throws Exception
+            {
+                return Flowable.combineLatest(previousItem, nextItem, new BiFunction<Item<Integer>, Item<Integer>, String>() {
+                    @Override
+                    public String apply(Item<Integer> previous, Item<Integer> next) throws Exception
+                    {
+                        String previousString = previous.exists() ? "" + previous.getValue() : "?";
+                        String nextString = next.exists() ? "" + next.getValue() : "?";
+
+                        return previousString + " < " + item + " > " + nextString;
+                    }
+                });
             }
         });
 
-        transformedList.updates().subscribe(testSubscriber);
-
-        testSubscriber.assertValueCount(1);
-
-        List<FlowableList.Update<Integer>> onNextEvents = testSubscriber.values();
-
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), onNextEvents.get(0).changes);
-        assertEquals(Arrays.asList(13, 14, 15), onNextEvents.get(0).list);
+        return transformedList.updates().test();
     }
 
     @Test
-    public void testSubjectMapTransform()
+    public void testAddTransform()
     {
-        TestSubscriber<FlowableList.Update<Flowable<String>>> testSubscriber = new TestSubscriber<>();
-
-        TestSubscriber<String> subscriber0 = new TestSubscriber<>();
-        TestSubscriber<String> subscriber1 = new TestSubscriber<>();
-        TestSubscriber<String> subscriber2 = new TestSubscriber<>();
-
-        SubjectMap<Integer, String> subjectMap = new SubjectMap<>();
         SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3));
-        FlowableList<Flowable<String>> transformedList = FlowableLists.transform(list, subjectMap);
 
-        transformedList.updates().subscribe(testSubscriber);
+        TestSubscriber<FlowableList.Update<Flowable<String>>> testSubscriber = createIndexedListt(list);
 
         testSubscriber.assertValueCount(1);
 
         List<FlowableList.Update<Flowable<String>>> onNextEvents = testSubscriber.values();
-        FlowableList.Update<Flowable<String>> update = onNextEvents.get(0);
 
-        Flowable<String> value0 = update.list.get(0);
-        Flowable<String> value1 = update.list.get(1);
-        Flowable<String> value2 = update.list.get(2);
+        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), onNextEvents.get(0).changes);
 
-        value0.subscribe(subscriber0);
-        value1.subscribe(subscriber1);
-        value2.subscribe(subscriber2);
+        List<Flowable<String>> list1 = onNextEvents.get(0).list;
 
-        subjectMap.onNext(1, "A");
-        subjectMap.onNext(2, "B");
-        subjectMap.onNext(3, "C");
+        Flowable<String> item1 = list1.get(0);
+        Flowable<String> item2 = list1.get(1);
+        Flowable<String> item3 = list1.get(2);
 
-        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), update.changes);
-        assertEquals("A", subscriber0.values().get(0));
-        assertEquals("B", subscriber1.values().get(0));
-        assertEquals("C", subscriber2.values().get(0));
+        TestSubscriber<String> test1 = item1.test();
+        TestSubscriber<String> test2 = item2.test();
+        TestSubscriber<String> test3 = item3.test();
+
+        test1.assertValue("? < 1 > 2");
+        test2.assertValue("1 < 2 > 3");
+        test3.assertValue("2 < 3 > ?");
+
+        list.add(1, 4);
+
+        test1.assertValues("? < 1 > 2", "? < 1 > 4");
+        test2.assertValues("1 < 2 > 3", "4 < 2 > 3");
+        test3.assertValueCount(1);
+
+        list.add(5);
+
+        test1.assertValues("? < 1 > 2", "? < 1 > 4");
+        test2.assertValues("1 < 2 > 3", "4 < 2 > 3");
+        test3.assertValues("2 < 3 > ?", "2 < 3 > 5");
+    }
+
+    @Test
+    public void testRemoveTransform()
+    {
+        SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3, 4));
+
+        TestSubscriber<FlowableList.Update<Flowable<String>>> testSubscriber = createIndexedListt(list);
+
+        testSubscriber.assertValueCount(1);
+
+        List<FlowableList.Update<Flowable<String>>> onNextEvents = testSubscriber.values();
+
+        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), onNextEvents.get(0).changes);
+
+        List<Flowable<String>> list1 = onNextEvents.get(0).list;
+
+        Flowable<String> item1 = list1.get(0);
+        Flowable<String> item2 = list1.get(1);
+        Flowable<String> item3 = list1.get(2);
+        Flowable<String> item4 = list1.get(3);
+
+        TestSubscriber<String> test1 = item1.test();
+        TestSubscriber<String> test2 = item2.test();
+        TestSubscriber<String> test3 = item3.test();
+        TestSubscriber<String> test4 = item4.test();
+
+        test1.assertValue("? < 1 > 2");
+        test2.assertValue("1 < 2 > 3");
+        test3.assertValue("2 < 3 > 4");
+        test4.assertValue("3 < 4 > ?");
+
+        list.remove(3);
+
+        test3.assertValues("2 < 3 > 4", "2 < 3 > ?");
+
+        list.remove(1);
+
+        test1.assertValues("? < 1 > 2", "? < 1 > 3");
+        test3.assertValues("2 < 3 > 4", "2 < 3 > ?", "1 < 3 > ?");
+    }
+
+    @Test
+    public void testMoveTransform()
+    {
+        SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3, 4));
+
+        TestSubscriber<FlowableList.Update<Flowable<String>>> testSubscriber = createIndexedListt(list);
+
+        testSubscriber.assertValueCount(1);
+
+        List<FlowableList.Update<Flowable<String>>> onNextEvents = testSubscriber.values();
+
+        assertEquals(Arrays.asList(FlowableList.Change.reloaded()), onNextEvents.get(0).changes);
+
+        List<Flowable<String>> list1 = onNextEvents.get(0).list;
+
+        Flowable<String> item1 = list1.get(0);
+        Flowable<String> item2 = list1.get(1);
+        Flowable<String> item3 = list1.get(2);
+        Flowable<String> item4 = list1.get(3);
+
+        TestSubscriber<String> test1 = item1.test();
+        TestSubscriber<String> test2 = item2.test();
+        TestSubscriber<String> test3 = item3.test();
+        TestSubscriber<String> test4 = item4.test();
+
+        test1.assertValue("? < 1 > 2");
+        test2.assertValue("1 < 2 > 3");
+        test3.assertValue("2 < 3 > 4");
+        test4.assertValue("3 < 4 > ?");
+
+        list.move(3, 1);
+
+        test1.assertValues("? < 1 > 2", "? < 1 > 4");
+        test2.assertValues("1 < 2 > 3", "4 < 2 > 3");
+        test3.assertValues("2 < 3 > 4", "2 < 3 > ?");
+
+        list.move(1, 3);
+
+        test1.assertValues("? < 1 > 2", "? < 1 > 4", "? < 1 > 2");
+        test2.assertValues("1 < 2 > 3", "4 < 2 > 3", "1 < 2 > 3");
+        test3.assertValues("2 < 3 > 4", "2 < 3 > ?", "2 < 3 > 4");
     }
 }
