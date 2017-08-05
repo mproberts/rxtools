@@ -1,4 +1,4 @@
-package com.github.mproberts.rxtools;
+package com.github.mproberts.rxtools.map;
 
 import io.reactivex.*;
 import io.reactivex.Flowable;

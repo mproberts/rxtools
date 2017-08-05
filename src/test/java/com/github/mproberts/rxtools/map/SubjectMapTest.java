@@ -1,5 +1,6 @@
-package com.github.mproberts.rxtools;
+package com.github.mproberts.rxtools.map;
 
+import com.github.mproberts.rxtools.map.SubjectMap;
 import io.reactivex.Flowable;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.disposables.Disposable;
@@ -10,8 +11,6 @@ import io.reactivex.subscribers.TestSubscriber;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
 
 import java.util.ArrayList;
 import java.util.List;
