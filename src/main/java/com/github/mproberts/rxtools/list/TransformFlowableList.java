@@ -5,12 +5,12 @@ import java.util.List;
 import io.reactivex.Flowable;
 import io.reactivex.functions.Function;
 
-class TransformObservableList<K, V> implements ObservableList<V>
+class TransformFlowableList<K, V> implements FlowableList<V>
 {
-    private final ObservableList<K> _list;
+    private final FlowableList<K> _list;
     private final Function<List<K>, List<V>> _mappingMethod;
 
-    TransformObservableList(ObservableList<K> list, Function<List<K>, List<V>> mapping)
+    TransformFlowableList(FlowableList<K> list, Function<List<K>, List<V>> mapping)
     {
         _list = list;
         _mappingMethod = mapping;

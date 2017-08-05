@@ -1,5 +1,6 @@
 package com.github.mproberts.rxtools.list;
 
+import com.github.mproberts.rxtools.map.SubjectMap;
 import io.reactivex.Flowable;
 
 import java.util.Collections;
@@ -10,7 +11,7 @@ import java.util.List;
  * a copy of the data and a changeset to transform from one list state to the next.
  * @param <T> The value type of the list
  */
-public interface ObservableList<T>
+public interface FlowableList<T>
 {
     /**
      * A change is a single modification to a list which transforms it from one state to the next
@@ -143,7 +144,7 @@ public interface ObservableList<T>
      * The list contained within the update is immutable. A new list will be sent with
      * every update, this should be taken into consideration when using observable lists
      * as you may wish to use an ID as the value of your list and map the value using a
-     * repository of some kind. A {@link com.github.mproberts.rxtools.SubjectMap} is a
+     * repository of some kind. A {@link SubjectMap} is a
      * useful candidate for applying this pattern.
      * @param <T> The type of values contained in the list
      */
@@ -202,8 +203,7 @@ public interface ObservableList<T>
         @Override
         public int hashCode()
         {
-            return list.hashCode()
-                    | (changes.hashCode() << 16);
+            return list.hashCode() | (changes.hashCode() << 16);
         }
     }
 

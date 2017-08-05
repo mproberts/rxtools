@@ -4,34 +4,33 @@ import io.reactivex.*;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
-import org.reactivestreams.Subscription;
 
 import java.util.List;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-class ConcatObservableList extends BaseObservableList
+class ConcatFlowableList extends BaseFlowableList
 {
     private final List<ListSubscription> _subscriptions = new ArrayList<>();
 
-    private final ObservableList<ObservableList<?>> _lists;
+    private final FlowableList<FlowableList<?>> _lists;
     private Flowable<Update> _updateObservable;
 
     private class ListSubscription implements Consumer<Update>
     {
-        private final ObservableList<?> _observableList;
+        private final FlowableList<?> _flowableList;
         private final List<Change> _initialChanges;
         private Disposable _subscription;
         private AtomicBoolean _alreadyRunning = new AtomicBoolean(true);
         private List<?> _latest;
         private int _index;
 
-        public ListSubscription(int index, List<Change> initialChanges, ObservableList<?> observableList)
+        public ListSubscription(int index, List<Change> initialChanges, FlowableList<?> flowableList)
         {
             _initialChanges = initialChanges;
-            _observableList = observableList;
-            _subscription = _observableList
+            _flowableList = flowableList;
+            _subscription = _flowableList
                     .updates()
                     .subscribe(this);
 
@@ -89,7 +88,7 @@ class ConcatObservableList extends BaseObservableList
             return _latest;
         }
     }
-    class ConcatUpdateSubscription implements Consumer<Update<ObservableList<?>>>, Disposable
+    class ConcatUpdateSubscription implements Consumer<Update<FlowableList<?>>>, Disposable
     {
         final AtomicBoolean _isFirst = new AtomicBoolean(true);
         private Emitter<Update> _firstEmitter;
@@ -102,13 +101,13 @@ class ConcatObservableList extends BaseObservableList
         }
 
         @Override
-        public void accept(final Update<ObservableList<?>> listsUpdate)
+        public void accept(final Update<FlowableList<?>> listsUpdate)
         {
             boolean isFirstEmission = _isFirst.getAndSet(false);
 
             if (isFirstEmission) {
                 int i = 0;
-                for (ObservableList<?> observableList : listsUpdate.list) {
+                for (FlowableList<?> flowableList : listsUpdate.list) {
                     addSubscription(i++, listsUpdate.list);
                 }
 
@@ -303,7 +302,7 @@ class ConcatObservableList extends BaseObservableList
         return _updateObservable;
     }
 
-    ConcatObservableList(ObservableList<ObservableList<?>> lists)
+    ConcatFlowableList(FlowableList<FlowableList<?>> lists)
     {
         _lists = lists;
     }
@@ -346,7 +345,7 @@ class ConcatObservableList extends BaseObservableList
         return updatedChanges;
     }
 
-    private List<Change> addSubscription(int position, List<ObservableList<?>> lists)
+    private List<Change> addSubscription(int position, List<FlowableList<?>> lists)
     {
         int offset = 0;
 
@@ -354,10 +353,10 @@ class ConcatObservableList extends BaseObservableList
             offset += _subscriptions.get(i).size();
         }
 
-        ObservableList<?> observableList = lists.get(position);
+        FlowableList<?> flowableList = lists.get(position);
         List<Change> changes = new ArrayList<>();
 
-        _subscriptions.add(position, new ListSubscription(position, changes, observableList));
+        _subscriptions.add(position, new ListSubscription(position, changes, flowableList));
 
         // populate initial adds if there is an emission from
         // the list already

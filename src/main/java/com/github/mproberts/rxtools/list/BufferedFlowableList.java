@@ -9,14 +9,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-class BufferedObservableList<T> implements ObservableList<T>
+class BufferedFlowableList<T> implements FlowableList<T>
 {
-    private final ObservableList<T> _list;
+    private final FlowableList<T> _list;
     private final long _timeSpan;
     private final TimeUnit _timeUnit;
     private final Scheduler _scheduler;
 
-    public BufferedObservableList(ObservableList<T> list, long timeSpan, TimeUnit timeUnit, Scheduler scheduler)
+    public BufferedFlowableList(FlowableList<T> list, long timeSpan, TimeUnit timeUnit, Scheduler scheduler)
     {
         _list = list;
         _timeSpan = timeSpan;

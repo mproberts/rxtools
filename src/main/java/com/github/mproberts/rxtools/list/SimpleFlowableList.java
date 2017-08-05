@@ -9,11 +9,11 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * A basic ObservableList implementation which behaves much like a generic List. Additions, removals,
+ * A basic FlowableList implementation which behaves much like a generic List. Additions, removals,
  * and moves will be automatically applied and emitted via the updates Flowable.
  * @param <T> The value type of the list
  */
-public class SimpleObservableList<T> extends BaseObservableList<T>
+public class SimpleFlowableList<T> extends BaseFlowableList<T>
 {
     private final Object _batchingLock = new Object();
     private List<Function<List<T>, Update<T>>> _batchedOperations;
@@ -39,18 +39,18 @@ public class SimpleObservableList<T> extends BaseObservableList<T>
     }
 
     /**
-     * Constructs a new, empty SimpleObservableList
+     * Constructs a new, empty SimpleFlowableList
      */
-    public SimpleObservableList()
+    public SimpleFlowableList()
     {
         super(Collections.<T>emptyList());
     }
 
     /**
-     * Constructs a new SimpleObservableList starting from the predefined state
+     * Constructs a new SimpleFlowableList starting from the predefined state
      * @param initialState The initial state of the list
      */
-    public SimpleObservableList(List<T> initialState)
+    public SimpleFlowableList(List<T> initialState)
     {
         super(initialState);
     }
@@ -60,9 +60,9 @@ public class SimpleObservableList<T> extends BaseObservableList<T>
      * as well a only emitting a single immutable list.
      * @param changes An action to be called which will apply operations to the list
      */
-    public void batch(final Consumer<SimpleObservableList<T>> changes)
+    public void batch(final Consumer<SimpleFlowableList<T>> changes)
     {
-        final SimpleObservableList<T> target = this;
+        final SimpleFlowableList<T> target = this;
 
         applyUpdate(new Function<List<T>, Update<T>>() {
             @Override

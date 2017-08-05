@@ -10,13 +10,13 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-class VisibilityStateObservableList<T> extends BaseObservableList<T>
+class VisibilityStateFlowableList<T> extends BaseFlowableList<T>
 {
-    private final ObservableList<VisibilityState<T>> _list;
+    private final FlowableList<VisibilityState<T>> _list;
     private final List<ItemSubscription> _listVisibility;
     private Disposable _subscription;
 
-    VisibilityStateObservableList(ObservableList<VisibilityState<T>> list)
+    VisibilityStateFlowableList(FlowableList<VisibilityState<T>> list)
     {
         _list = list;
         _listVisibility = new ArrayList<>();

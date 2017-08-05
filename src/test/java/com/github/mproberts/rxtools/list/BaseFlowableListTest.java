@@ -15,21 +15,21 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertTrue;
 
-public class BaseObservableListTest
+public class BaseFlowableListTest
 {
-    private SimpleObservableList<Integer> list;
+    private SimpleFlowableList<Integer> list;
 
     @Before
     public void setup()
     {
-        list = new SimpleObservableList<>();
+        list = new SimpleFlowableList<>();
     }
 
     @Test
     public void testBasicAdd()
     {
         final AtomicInteger counter = new AtomicInteger(0);
-        TestSubscriber<ObservableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
+        TestSubscriber<FlowableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
 
         list.updates().subscribe(testSubscriber);
 
@@ -37,22 +37,22 @@ public class BaseObservableListTest
         list.add(counter.incrementAndGet());
 
         testSubscriber.assertValues(
-                new ObservableList.Update<>(Arrays.<Integer>asList(), ObservableList.Change.reloaded()),
-                new ObservableList.Update<>(Arrays.asList(1), ObservableList.Change.inserted(0)),
-                new ObservableList.Update<>(Arrays.asList(1, 2), ObservableList.Change.inserted(1)));
+                new FlowableList.Update<>(Arrays.<Integer>asList(), FlowableList.Change.reloaded()),
+                new FlowableList.Update<>(Arrays.asList(1), FlowableList.Change.inserted(0)),
+                new FlowableList.Update<>(Arrays.asList(1, 2), FlowableList.Change.inserted(1)));
     }
 
     @Test
     public void testBatchAddRemove()
     {
         final AtomicInteger counter = new AtomicInteger(0);
-        TestSubscriber<ObservableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
+        TestSubscriber<FlowableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
 
         list.updates().subscribe(testSubscriber);
 
-        list.batch(new Consumer<SimpleObservableList<Integer>>() {
+        list.batch(new Consumer<SimpleFlowableList<Integer>>() {
             @Override
-            public void accept(SimpleObservableList<Integer> integerBaseObservableList)
+            public void accept(SimpleFlowableList<Integer> integerBaseObservableList)
             {
                 list.add(counter.incrementAndGet());
                 list.add(counter.incrementAndGet());
@@ -62,12 +62,12 @@ public class BaseObservableListTest
         });
 
         testSubscriber.assertValues(
-                new ObservableList.Update<>(Arrays.<Integer>asList(), ObservableList.Change.reloaded()),
-                new ObservableList.Update<>(Arrays.asList(1, 3), Arrays.asList(
-                        ObservableList.Change.inserted(0),
-                        ObservableList.Change.inserted(1),
-                        ObservableList.Change.removed(1),
-                        ObservableList.Change.inserted(1)
+                new FlowableList.Update<>(Arrays.<Integer>asList(), FlowableList.Change.reloaded()),
+                new FlowableList.Update<>(Arrays.asList(1, 3), Arrays.asList(
+                        FlowableList.Change.inserted(0),
+                        FlowableList.Change.inserted(1),
+                        FlowableList.Change.removed(1),
+                        FlowableList.Change.inserted(1)
                 )));
     }
 
@@ -76,7 +76,7 @@ public class BaseObservableListTest
     {
         final int iterations = 100;
         final AtomicInteger counter = new AtomicInteger(0);
-        TestSubscriber<ObservableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
+        TestSubscriber<FlowableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
         ExecutorService executorService = Executors.newFixedThreadPool(iterations / 4);
 
         List<Callable<Object>> callbales = new ArrayList<>();
@@ -102,7 +102,7 @@ public class BaseObservableListTest
 
         executorService.invokeAll(callbales);
 
-        testSubscriber.assertValue(new ObservableList.Update<>(allEntries, ObservableList.Change.inserted(iterations - 1)));
+        testSubscriber.assertValue(new FlowableList.Update<>(allEntries, FlowableList.Change.inserted(iterations - 1)));
     }
 
     @Test
@@ -110,7 +110,7 @@ public class BaseObservableListTest
     {
         final int iterations = 1000;
         final AtomicInteger counter = new AtomicInteger(0);
-        TestSubscriber<ObservableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
+        TestSubscriber<FlowableList.Update<Integer>> testSubscriber = new TestSubscriber<>();
         ExecutorService executorService = Executors.newFixedThreadPool(25);
 
         List<Callable<Object>> callbales = new ArrayList<>();
@@ -131,8 +131,8 @@ public class BaseObservableListTest
 
         executorService.invokeAll(callbales);
 
-        List<ObservableList.Update<Integer>> events = testSubscriber.values();
-        ObservableList.Update<Integer> lastEvent = events.get(events.size() - 1);
+        List<FlowableList.Update<Integer>> events = testSubscriber.values();
+        FlowableList.Update<Integer> lastEvent = events.get(events.size() - 1);
         List<Integer> list = lastEvent.list;
 
         for (int i = 0; i < iterations; ++i) {

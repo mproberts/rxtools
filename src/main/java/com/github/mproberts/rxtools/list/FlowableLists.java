@@ -1,22 +1,24 @@
 package com.github.mproberts.rxtools.list;
 
 import com.github.mproberts.rxtools.map.SubjectMap;
+import com.github.mproberts.rxtools.types.Item;
 import io.reactivex.Flowable;
 import io.reactivex.Scheduler;
-import io.reactivex.functions.Function;
+import io.reactivex.functions.*;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
  * A utility class providing access to wrapping methods for working with FlowableList
  * instances. This class provides methods for creating, transforming, merging and managing
- * ObservableLists.
+ * FlowableLists.
  */
-public final class ObservableLists
+public final class FlowableLists
 {
-    private ObservableLists()
+    private FlowableLists()
     {
         // utility class
     }
@@ -80,7 +82,33 @@ public final class ObservableLists
             @Override
             public List<R> apply(List<T> list)
             {
-                return new TransformList<>(list, transform);
+                return new TransformList.SimpleTransformList<>(list, transform);
+            }
+        });
+    }
+
+    public static <T, R> FlowableList<R> indexedTransform(final FlowableList<T> list, final Function3<T, Flowable<Item<T>>, Flowable<Item<T>>, R> transform)
+    {
+        return new IndexedFlowableList<>(list, transform);
+    }
+
+    /**
+     * Calls the supplied prefetch method on the amount before and after a requested index on every get call. This is
+     * useful for flowable lists of indexes which can be prefetched before a scroll event or as a new batch of content
+     * is requested.
+     * @param list The list to wrap
+     * @param fetcher The prefetching method to run on each requested item
+     * @param beforeAmount The number of items to prefetch after the current index
+     * @param afterAmount The number of items to prefetch after the current index
+     * @param <T> The type of the source
+     * @return
+     */
+    public static <T> FlowableList<T> prefetch(final FlowableList<T> list, final int beforeAmount, final int afterAmount, final Consumer<Collection<T>> fetcher)
+    {
+        return new TransformFlowableList<>(list, new Function<List<T>, List<T>>() {
+            @Override
+            public List<T> apply(List<T> list) throws Exception {
+                return new PrefetchList<>(list, beforeAmount, afterAmount, fetcher);
             }
         });
     }
@@ -124,16 +152,16 @@ public final class ObservableLists
     }
 
     /**
-     * Wraps the supplied list with the ability to merge changesets into a single changeset
-     * when the stream comes under pressure. A sequence of inserts, removals and moves will
-     * be translated into a single changeset caching the most recent list state only
+     * Transforms an FlowableList containing VisibilityState items into an FlowableList
+     * which includes in its emissions the changes in visibility status of the items within the
+     * original list
      * @param list The list to wrap
      * @param <T> The type of elements
-     * @return A new FlowableList which has an updates method capable of handling backpressure
+     * @return A new FlowableList
      */
-    public static <T> FlowableList<T> onBackpressureMerge(final FlowableList<T> list)
+    public static <T> FlowableList<T> flatten(Flowable<? extends FlowableList<T>> list)
     {
-        return new BackpressureMergeFlowableList<>(list);
+        return new FlatMapFlowableList<>(list);
     }
 
     /**
@@ -154,22 +182,11 @@ public final class ObservableLists
      * wrapped FlowableList will emit the new list state when new emissions are available
      * along with the diff which transforms the previous into the next state.
      * @param list The list to wrap
-     * @param alwaysReload If true, the diff between emissions will not be computed, instead,
-     *                     a reload will be emitted for every change
      * @param <T> The type of elements
      * @return A new FlowableList
-     */
-    public static <T> FlowableList<T> diff(Flowable<List<T>> list, boolean alwaysReload)
-    {
-        return new DifferentialFlowableList<>(list, alwaysReload);
-    }
-
-    /**
-     * See {@link #diff(Flowable<List>) diff}.
      */
     public static <T> FlowableList<T> diff(Flowable<List<T>> list)
     {
         return new DifferentialFlowableList<>(list);
     }
-
 }

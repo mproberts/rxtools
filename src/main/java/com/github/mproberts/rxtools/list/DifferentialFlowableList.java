@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-class DifferentialObservableList<T> implements ObservableList<T>
+class DifferentialFlowableList<T> implements FlowableList<T>
 {
     private final boolean _alwaysReload;
     private final Flowable<Update<T>> _diffTransform;
@@ -19,12 +19,12 @@ class DifferentialObservableList<T> implements ObservableList<T>
         return Collections.singletonList(Change.reloaded());
     }
 
-    DifferentialObservableList(Flowable<List<T>> listStream)
+    DifferentialFlowableList(Flowable<List<T>> listStream)
     {
         this(listStream, false);
     }
 
-    DifferentialObservableList(Flowable<List<T>> list, boolean alwaysReload)
+    DifferentialFlowableList(Flowable<List<T>> list, boolean alwaysReload)
     {
         _alwaysReload = alwaysReload;
         _diffTransform = list

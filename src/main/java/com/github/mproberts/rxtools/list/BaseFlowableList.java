@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 
-class BaseObservableList<T> implements ObservableList<T>
+class BaseFlowableList<T> implements FlowableList<T>
 {
     private List<T> _previousList = null;
 
@@ -27,12 +27,12 @@ class BaseObservableList<T> implements ObservableList<T>
         }
     };
 
-    BaseObservableList()
+    BaseFlowableList()
     {
         _previousList = null;
     }
 
-    BaseObservableList(List<T> initialState)
+    BaseFlowableList(List<T> initialState)
     {
         _previousList = initialState;
     }
