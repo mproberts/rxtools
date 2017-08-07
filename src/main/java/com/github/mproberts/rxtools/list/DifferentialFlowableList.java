@@ -1,5 +1,6 @@
 package com.github.mproberts.rxtools.list;
 
+import difflib.Chunk;
 import difflib.Delta;
 import difflib.DiffAlgorithm;
 import difflib.Patch;
@@ -25,15 +26,44 @@ class DifferentialFlowableList<T> extends FlowableList<T>
 
         for (Delta<T> delta : deltas) {
             switch (delta.getType()) {
-                case CHANGE:
-                    changes.add(Change.reloaded());
+                case CHANGE: {
+                    Chunk<T> original = delta.getOriginal();
+                    List<T> originalLines = original.getLines();
+                    int originalPosition = original.getPosition();
+
+                    Chunk<T> revised = delta.getRevised();
+                    List<T> lines = revised.getLines();
+                    int position = revised.getPosition();
+
+                    for (int i = 0; i < originalLines.size(); ++i) {
+                        changes.add(Change.removed(originalPosition));
+                    }
+
+                    for (int i = 0; i < lines.size(); ++i) {
+                        changes.add(Change.inserted(position + i));
+                    }
                     break;
-                case DELETE:
-                    changes.add(Change.removed(delta.getOriginal().getPosition()));
+                }
+                case INSERT: {
+                    Chunk<T> revised = delta.getRevised();
+                    List<T> lines = revised.getLines();
+                    int position = revised.getPosition();
+
+                    for (int i = 0; i < lines.size(); ++i) {
+                        changes.add(Change.inserted(position + i));
+                    }
                     break;
-                case INSERT:
-                    changes.add(Change.inserted(delta.getRevised().getPosition()));
+                }
+                case DELETE: {
+                    Chunk<T> original = delta.getOriginal();
+                    List<T> lines = original.getLines();
+                    int position = original.getPosition();
+
+                    for (int i = 0; i < lines.size(); ++i) {
+                        changes.add(Change.removed(position));
+                    }
                     break;
+                }
             }
         }
 
