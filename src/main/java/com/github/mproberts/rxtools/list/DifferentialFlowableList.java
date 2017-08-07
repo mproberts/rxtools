@@ -1,37 +1,54 @@
 package com.github.mproberts.rxtools.list;
 
+import difflib.Delta;
+import difflib.DiffAlgorithm;
+import difflib.Patch;
+import difflib.myers.MyersDiff;
 import io.reactivex.*;
 import io.reactivex.functions.BiFunction;
 import io.reactivex.functions.Function;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 class DifferentialFlowableList<T> extends FlowableList<T>
 {
-    private final boolean _alwaysReload;
     private final Flowable<Update<T>> _diffTransform;
     private List<T> _previousList;
+    private DiffAlgorithm<T> _diffAlgorithm;
 
-    private static <T> List<Change> computeDiff(List<T> before, List<T> after)
+    private List<Change> computeDiff(List<T> before, List<T> after)
     {
-        return Collections.singletonList(Change.reloaded());
+        Patch<T> patch = _diffAlgorithm.diff(before, after);
+        List<Delta<T>> deltas = patch.getDeltas();
+        List<Change> changes = new ArrayList<>(deltas.size());
+
+        for (Delta<T> delta : deltas) {
+            switch (delta.getType()) {
+                case CHANGE:
+                    changes.add(Change.reloaded());
+                    break;
+                case DELETE:
+                    changes.add(Change.removed(delta.getOriginal().getPosition()));
+                    break;
+                case INSERT:
+                    changes.add(Change.inserted(delta.getRevised().getPosition()));
+                    break;
+            }
+        }
+
+        return changes;
     }
 
-    DifferentialFlowableList(Flowable<List<T>> listStream)
+    DifferentialFlowableList(Flowable<List<T>> list)
     {
-        this(listStream, false);
-    }
+        _diffAlgorithm = new MyersDiff<>();
 
-    DifferentialFlowableList(Flowable<List<T>> list, boolean alwaysReload)
-    {
-        _alwaysReload = alwaysReload;
         _diffTransform = list
                 .map(new Function<List<T>, Update<T>>() {
                     @Override
                     public Update<T> apply(List<T> ts) {
-                        return new Update<T>(ts, Change.reloaded());
+                        return new Update<>(ts, Change.reloaded());
                     }
                 })
                 .scan(new BiFunction<Update<T>, Update<T>, Update<T>>() {

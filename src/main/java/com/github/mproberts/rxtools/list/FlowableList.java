@@ -94,12 +94,12 @@ public abstract class FlowableList<T>
      * Observes a stream of type List and computes the diff between successive emissions. The
      * wrapped FlowableList will emit the new list state when new emissions are available
      * along with the diff which transforms the previous into the next state.
-     * @param list The list to wrap
+     * @param listStream The list to wrap
      * @return A new FlowableList
      */
-    public static <T> FlowableList<T> diff(Flowable<List<T>> list)
+    public static <T> FlowableList<T> diff(Flowable<List<T>> listStream)
     {
-        return new DifferentialFlowableList<>(list);
+        return new DifferentialFlowableList<>(listStream);
     }
 
     /**
