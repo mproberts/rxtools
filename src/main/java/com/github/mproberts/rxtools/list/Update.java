@@ -20,7 +20,7 @@ import java.util.List;
  * useful candidate for applying this pattern.
  * @param <T> The type of values contained in the list
  */
-final class Update<T>
+public final class Update<T>
 {
     /**
      * The current state of the underlying list

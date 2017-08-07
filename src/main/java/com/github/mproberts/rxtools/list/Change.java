@@ -3,7 +3,7 @@ package com.github.mproberts.rxtools.list;
 /**
  * A change is a single modification to a list which transforms it from one state to the next
  */
-class Change
+public class Change
 {
     /**
      * The type of the change dictates which behaviour to apply to the list
