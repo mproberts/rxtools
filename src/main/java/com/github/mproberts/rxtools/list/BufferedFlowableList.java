@@ -3,6 +3,7 @@ package com.github.mproberts.rxtools.list;
 import io.reactivex.Flowable;
 import io.reactivex.Scheduler;
 import io.reactivex.functions.Function;
+import org.reactivestreams.Publisher;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -29,9 +30,13 @@ class BufferedFlowableList<T> extends FlowableList<T>
     {
         return _list.updates()
                 .buffer(_timeSpan, _timeUnit, _scheduler)
-                .map(new Function<List<Update<T>>, Update<T>>() {
+                .flatMap(new Function<List<Update<T>>, Publisher<Update<T>>>() {
                     @Override
-                    public Update<T> apply(List<Update<T>> updates) {
+                    public Publisher<Update<T>> apply(List<Update<T>> updates) throws Exception {
+                        if (updates.size() == 0) {
+                            return Flowable.empty();
+                        }
+
                         Update<T> lastUpdate = updates.get(updates.size() - 1);
                         List<Change> allChanges = new ArrayList<>();
 
@@ -47,7 +52,7 @@ class BufferedFlowableList<T> extends FlowableList<T>
                             }
                         }
 
-                        return new Update<>(lastUpdate.list, allChanges);
+                        return Flowable.just(new Update<>(lastUpdate.list, allChanges));
                     }
                 });
     }

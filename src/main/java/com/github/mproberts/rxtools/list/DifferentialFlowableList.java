@@ -1,10 +1,5 @@
 package com.github.mproberts.rxtools.list;
 
-import difflib.Chunk;
-import difflib.Delta;
-import difflib.DiffAlgorithm;
-import difflib.Patch;
-import difflib.myers.MyersDiff;
 import io.reactivex.*;
 import io.reactivex.functions.BiFunction;
 import io.reactivex.functions.Function;
@@ -16,64 +11,16 @@ class DifferentialFlowableList<T> extends FlowableList<T>
 {
     private final Flowable<Update<T>> _diffTransform;
     private List<T> _previousList;
-    private DiffAlgorithm<T> _diffAlgorithm;
+    private boolean _detectMoves;
 
-    private List<Change> computeDiff(List<T> before, List<T> after)
+    private List<Change> computeDiff(final List<T> before, final List<T> after)
     {
-        Patch<T> patch = _diffAlgorithm.diff(before, after);
-        List<Delta<T>> deltas = patch.getDeltas();
-        List<Change> changes = new ArrayList<>(deltas.size());
-
-        for (Delta<T> delta : deltas) {
-            switch (delta.getType()) {
-                case CHANGE: {
-                    Chunk<T> original = delta.getOriginal();
-                    List<T> originalLines = original.getLines();
-                    int originalPosition = original.getPosition();
-
-                    Chunk<T> revised = delta.getRevised();
-                    List<T> lines = revised.getLines();
-                    int position = revised.getPosition();
-
-                    for (int i = 0; i < originalLines.size(); ++i) {
-                        changes.add(Change.removed(originalPosition));
-                    }
-
-                    for (int i = 0; i < lines.size(); ++i) {
-                        changes.add(Change.inserted(position + i));
-                    }
-                    break;
-                }
-                case INSERT: {
-                    Chunk<T> revised = delta.getRevised();
-                    List<T> lines = revised.getLines();
-                    int position = revised.getPosition();
-
-                    for (int i = 0; i < lines.size(); ++i) {
-                        changes.add(Change.inserted(position + i));
-                    }
-                    break;
-                }
-                case DELETE: {
-                    Chunk<T> original = delta.getOriginal();
-                    List<T> lines = original.getLines();
-                    int position = original.getPosition();
-
-                    for (int i = 0; i < lines.size(); ++i) {
-                        changes.add(Change.removed(position));
-                    }
-                    break;
-                }
-            }
-        }
-
-        return changes;
+        return Diff.calculateDiff(before, after, _detectMoves);
     }
 
-    DifferentialFlowableList(Flowable<List<T>> list)
+    DifferentialFlowableList(Flowable<List<T>> list, boolean detectMoves)
     {
-        _diffAlgorithm = new MyersDiff<>();
-
+        _detectMoves = detectMoves;
         _diffTransform = list
                 .map(new Function<List<T>, Update<T>>() {
                     @Override

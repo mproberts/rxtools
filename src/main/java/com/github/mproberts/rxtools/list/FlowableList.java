@@ -91,15 +91,24 @@ public abstract class FlowableList<T>
     }
 
     /**
+     * See {@link #diff(FlowableList, boolean) diff}.
+     */
+    public static <T> FlowableList<T> diff(Flowable<List<T>> listStream)
+    {
+        return diff(listStream, true);
+    }
+
+    /**
      * Observes a stream of type List and computes the diff between successive emissions. The
      * wrapped FlowableList will emit the new list state when new emissions are available
      * along with the diff which transforms the previous into the next state.
      * @param listStream The list to wrap
+     * @param detectMoves Indicates whether to apply move calculation to the diff
      * @return A new FlowableList
      */
-    public static <T> FlowableList<T> diff(Flowable<List<T>> listStream)
+    public static <T> FlowableList<T> diff(Flowable<List<T>> listStream, boolean detectMoves)
     {
-        return new DifferentialFlowableList<>(listStream);
+        return new DifferentialFlowableList<>(listStream, detectMoves);
     }
 
     /**
