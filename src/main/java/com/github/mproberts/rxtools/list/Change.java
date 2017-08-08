@@ -29,9 +29,9 @@ public class Change
 
     /**
      *
-     * @param from
-     * @param to
-     * @return
+     * @param from Location in the source list
+     * @param to Location in the destination list
+     * @return A change representing the move
      */
     public static Change moved(int from, int to)
     {
@@ -40,8 +40,8 @@ public class Change
 
     /**
      *
-     * @param to
-     * @return
+     * @param to Location in the destination list
+     * @return A change representing the insertion
      */
     public static Change inserted(int to)
     {
@@ -50,8 +50,8 @@ public class Change
 
     /**
      *
-     * @param from
-     * @return
+     * @param from Location in the destination list
+     * @return A change representing the removal
      */
     public static Change removed(int from)
     {
@@ -60,7 +60,7 @@ public class Change
 
     /**
      *
-     * @return
+     * @return A change representing the reload
      */
     public static Change reloaded()
     {

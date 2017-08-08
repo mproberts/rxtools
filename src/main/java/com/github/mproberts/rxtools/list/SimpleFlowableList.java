@@ -114,6 +114,7 @@ public class SimpleFlowableList<T> extends BaseFlowableList<T>
 
     /**
      * Adds a value at the specified position within the list
+     * @param index The position in the list at which to add the new element
      * @param value The value to add
      */
     public void add(final int index, final T value)

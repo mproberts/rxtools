@@ -30,6 +30,7 @@ public abstract class FlowableList<T>
     /**
      * Creates an FlowableList which will contain all and only the provided list items
      * @param list The list of items to wrap
+     * @param <T> The type of elements
      * @return The wrapped FlowableList
      */
     public static <T> FlowableList<T> of(List<T> list)
@@ -39,12 +40,21 @@ public abstract class FlowableList<T>
 
     /**
      * See {@link #of(List) of}.
+     *
+     * @param list The list of items to wrap
+     * @param <T> The type of elements
+     * @return The wrapped FlowableList
      */
     public static <T> FlowableList<T> of(T... list)
     {
         return of(Arrays.asList(list));
     }
 
+    /**
+     *
+     * @param list The list of heterogeneous types to concatenate
+     * @return The concatenated list of all lists
+     */
     public static FlowableList concatGeneric(FlowableList<? extends FlowableList> list)
     {
         return new ConcatFlowableList((FlowableList) list);
@@ -65,10 +75,23 @@ public abstract class FlowableList<T>
     }
 
     /**
+     * See {@link #concat(FlowableList) concat}.
+     * @param lists The list of items to wrap
+     * @param <T> The type of elements
+     * @return A new FlowableList with the contents of all supplied lists
+     */
+    public static <T> FlowableList concat(List<? extends FlowableList<T>> lists)
+    {
+        return concat(of(lists));
+    }
+
+
+    /**
      * Transforms an FlowableList containing VisibilityState items into an FlowableList
      * which includes in its emissions the changes in visibility status of the items within the
      * original list
      * @param list The list to wrap
+     * @param <T> The type of elements
      * @return A new FlowableList
      */
     public static <T> FlowableList<T> flatten(Flowable<? extends FlowableList<T>> list)
@@ -81,6 +104,8 @@ public abstract class FlowableList<T>
      * which includes in its emissions the changes in visibility status of the items within the
      * original list
      * @param list The list to wrap
+     * @param <T> The type of elements
+     * @param <S> The list type containing the visibility state items
      * @return A new FlowableList
      */
     @SuppressWarnings("unchecked cast")
@@ -90,7 +115,9 @@ public abstract class FlowableList<T>
     }
 
     /**
-     * See {@link #diff(FlowableList, boolean) diff}.
+     * @param listStream The list to wrap
+     * @param <T> The type of elements
+     * @return A new FlowableList
      */
     public static <T> FlowableList<T> diff(Flowable<List<T>> listStream)
     {
@@ -103,19 +130,12 @@ public abstract class FlowableList<T>
      * along with the diff which transforms the previous into the next state.
      * @param listStream The list to wrap
      * @param detectMoves Indicates whether to apply move calculation to the diff
+     * @param <T> The type of elements
      * @return A new FlowableList
      */
     public static <T> FlowableList<T> diff(Flowable<List<T>> listStream, boolean detectMoves)
     {
         return new DifferentialFlowableList<>(listStream, detectMoves);
-    }
-
-    /**
-     * See {@link #concat(FlowableList) concat}.
-     */
-    public static <T> FlowableList concat(List<? extends FlowableList<T>> lists)
-    {
-        return concat(of(lists));
     }
 
     /**
@@ -174,6 +194,14 @@ public abstract class FlowableList<T>
         });
     }
 
+    /**
+     * Transforms the list using the supplied transform. The transform will receive a Flowable
+     * bound to the previous and next items in the list. The previous and next Flowables will emit
+     * when the item moves within the list or when items surrounding the list are moved.
+     * @param transform A function transforming the source to the target type
+     * @param <R> The type of the mapped value
+     * @return A new FlowableList which has values mapped via the supplied transform
+     */
     public <R> FlowableList<R> indexedTransform(final Function3<T, Flowable<Item<T>>, Flowable<Item<T>>, R> transform)
     {
         return new IndexedFlowableList<>(this, transform);
@@ -186,7 +214,7 @@ public abstract class FlowableList<T>
      * @param fetcher The prefetching method to run on each requested item
      * @param beforeAmount The number of items to prefetch after the current index
      * @param afterAmount The number of items to prefetch after the current index
-     * @return
+     * @return A new FlowableList which prefetches the surrounding items on a query
      */
     public FlowableList<T> prefetch(final int beforeAmount, final int afterAmount, final Consumer<Collection<T>> fetcher)
     {
@@ -201,8 +229,7 @@ public abstract class FlowableList<T>
     }
 
     /**
-     * See {@link #transform(Function transform}.
-     * @param list The list to wrap
+     * See {@link #transform(Function transform)}.
      * @param mapping A SubjectMap used to maps input keys onto observable values
      * @param <R> The type of the mapped value
      * @return A new FlowableList which has values mapped via the supplied SubjectMap
