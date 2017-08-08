@@ -43,6 +43,37 @@ public class BaseFlowableListTest
     }
 
     @Test
+    public void testBasicAddAll()
+    {
+        final AtomicInteger counter = new AtomicInteger(0);
+        TestSubscriber<Update<Integer>> testSubscriber = new TestSubscriber<>();
+
+        list.updates().subscribe(testSubscriber);
+
+        list.addAll(Arrays.asList(counter.incrementAndGet(), counter.incrementAndGet()));
+
+        testSubscriber.assertValues(
+                new Update<>(Arrays.<Integer>asList(), Change.reloaded()),
+                new Update<>(Arrays.asList(1, 2), Arrays.asList(Change.inserted(0), Change.inserted(1))));
+    }
+
+    @Test
+    public void testMoveNoop()
+    {
+        final AtomicInteger counter = new AtomicInteger(0);
+        TestSubscriber<Update<Integer>> testSubscriber = new TestSubscriber<>();
+
+        list.updates().subscribe(testSubscriber);
+
+        list.addAll(Arrays.asList(counter.incrementAndGet(), counter.incrementAndGet()));
+        list.move(1, 1);
+
+        testSubscriber.assertValues(
+                new Update<>(Arrays.<Integer>asList(), Change.reloaded()),
+                new Update<>(Arrays.asList(1, 2), Arrays.asList(Change.inserted(0), Change.inserted(1))));
+    }
+
+    @Test
     public void testBatchAddRemove()
     {
         final AtomicInteger counter = new AtomicInteger(0);

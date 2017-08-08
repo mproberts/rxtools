@@ -46,6 +46,7 @@ public abstract class ListImplementationTest
         assertFalse(getList().equals(equalLengthList));
         assertFalse(getList().equals(getEmpty()));
         assertFalse(getList().equals(Arrays.asList("this", "is", "fake")));
+        assertFalse(getList().equals("test"));
     }
 
     @Test
@@ -131,6 +132,21 @@ public abstract class ListImplementationTest
             assertEquals(iterator1.previousIndex(), iterator2.previousIndex());
             assertEquals(iterator1.previous(), iterator2.previous());
         }
+    }
+
+    @Test
+    public void testListIteratorEdges()
+    {
+        ListIterator iterator = getList().listIterator();
+
+        assertFalse(iterator.hasPrevious());
+
+        // run it forwards
+        while (iterator.hasNext()) {
+            iterator.next();
+        }
+
+        assertFalse(iterator.hasNext());
     }
 
     @Test
@@ -239,5 +255,29 @@ public abstract class ListImplementationTest
     public void testRemoveIndex()
     {
         getList().remove(0);
+    }
+
+    @Test(expected = UnsupportedOperationException.class)
+    public void testContains()
+    {
+        getList().contains(new Object());
+    }
+
+    @Test(expected = UnsupportedOperationException.class)
+    public void testContainsAll()
+    {
+        getList().containsAll(Collections.singletonList(new Object()));
+    }
+
+    @Test(expected = UnsupportedOperationException.class)
+    public void testIndexOf()
+    {
+        getList().indexOf(new Object());
+    }
+
+    @Test(expected = UnsupportedOperationException.class)
+    public void testLastIndexOf()
+    {
+        getList().lastIndexOf(new Object());
     }
 }

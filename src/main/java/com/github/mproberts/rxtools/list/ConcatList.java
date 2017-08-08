@@ -101,6 +101,9 @@ class ConcatList implements List
             if (_iterators.length == 0) {
                 return null;
             }
+            else if (_currentIteratorIndex >= _iterators.length) {
+                return null;
+            }
 
             return _iterators[_currentIteratorIndex];
         }
