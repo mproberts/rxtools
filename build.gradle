@@ -6,7 +6,7 @@ repositories {
 }
 
 dependencies {
-    api 'io.reactivex:rxjava:1.1.9'
+    api 'io.reactivex.rxjava2:rxjava:2.1.2'
 
     testImplementation 'junit:junit:4.12'
 }
@@ -14,7 +14,7 @@ dependencies {
 allprojects {
     sourceCompatibility = 1.7
     targetCompatibility = 1.7
-    version = '0.2.2'
+    version = '0.5.0'
 }
 
 jacocoTestReport {

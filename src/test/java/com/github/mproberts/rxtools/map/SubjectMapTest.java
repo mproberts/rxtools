@@ -1,15 +1,16 @@
-package com.github.mproberts.rxtools.test;
+package com.github.mproberts.rxtools.map;
 
-import com.github.mproberts.rxtools.SubjectMap;
+import com.github.mproberts.rxtools.map.SubjectMap;
+import io.reactivex.Flowable;
+import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Action;
+import io.reactivex.functions.Consumer;
+import io.reactivex.subscribers.DisposableSubscriber;
+import io.reactivex.subscribers.TestSubscriber;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import rx.Observable;
-import rx.Subscriber;
-import rx.Subscription;
-import rx.functions.Action1;
-import rx.observers.TestSubscriber;
-import rx.subscriptions.CompositeSubscription;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,35 +32,40 @@ public class SubjectMapTest
         }
     }
 
-    private CompositeSubscription _subscription;
+    private CompositeDisposable _subscription;
     private SubjectMap<String, Integer> source;
 
-    private static class IncrementingFaultSatisfier<K> implements Action1<K>
+    private static class IncrementingFaultSatisfier<K> implements Consumer<K>
     {
         private final AtomicInteger _counter;
         private final SubjectMap<K, Integer> _source;
 
-        public IncrementingFaultSatisfier(SubjectMap<K, Integer> source, AtomicInteger counter)
+        IncrementingFaultSatisfier(SubjectMap<K, Integer> source, AtomicInteger counter)
         {
             _source = source;
             _counter = counter;
         }
 
         @Override
-        public void call(K key)
+        public void accept(K key)
         {
             _source.onNext(key, _counter.incrementAndGet());
         }
     }
 
-    private <T> void subscribe(Observable<T> observable, Action1<T> action)
+    private <T> void subscribe(Flowable<T> observable, DisposableSubscriber<T> action)
     {
-        _subscription.add(observable.subscribe(action));
+        _subscription.add(observable.subscribeWith(action));
     }
 
-    private <T> void subscribe(Observable<T> observable, Subscriber<T> subscriber)
+    private <T> void subscribe(Flowable<T> observable, TestSubscriber<T> action)
     {
-        _subscription.add(observable.subscribe(subscriber));
+        _subscription.add(observable.subscribeWith(action));
+    }
+
+    private <T> void subscribe(Flowable<T> observable, Consumer<T> action)
+    {
+        _subscription.add(observable.subscribe(action));
     }
 
     private void unsubscribeAll()
@@ -71,7 +77,7 @@ public class SubjectMapTest
     public void setup()
     {
         source = new SubjectMap<>();
-        _subscription = new CompositeSubscription();
+        _subscription = new CompositeDisposable();
     }
 
     @After
@@ -85,7 +91,7 @@ public class SubjectMapTest
     {
         // setup
         AtomicInteger counter = new AtomicInteger(0);
-        Subscription faultSubscription = source.faults()
+        Disposable faultSubscription = source.faults()
                 .subscribe(new IncrementingFaultSatisfier<>(source, counter));
 
         TestSubscriber<Integer> testSubscriber1 = new TestSubscriber<>();
@@ -111,7 +117,7 @@ public class SubjectMapTest
         testSubscriber3.assertValues(2);
 
         // cleanup
-        faultSubscription.unsubscribe();
+        faultSubscription.dispose();
     }
 
     @Test
@@ -120,23 +126,23 @@ public class SubjectMapTest
         TestSubscriber<Integer> testSubscriber1 = new TestSubscriber<>();
         TestSubscriber<Integer> testSubscriber2 = new TestSubscriber<>();
 
-        Observable<Integer> value1 = source.get("hello");
-        Subscription s1 = value1.subscribe(testSubscriber1);
+        Flowable<Integer> value1 = source.get("hello");
+        Disposable s1 = value1.subscribeWith(testSubscriber1);
 
         source.onNext("hello", 3);
 
-        s1.unsubscribe();
+        s1.dispose();
 
         testSubscriber1.assertValues(3);
 
-        Observable<Integer> value2 = source.get("hello");
-        Subscription s2 = value2.subscribe(testSubscriber2);
-        Subscription s3 = value1.subscribe(testSubscriber1);
+        Flowable<Integer> value2 = source.get("hello");
+        Disposable s2 = value2.subscribeWith(testSubscriber2);
+        Disposable s3 = value1.subscribeWith(testSubscriber1);
 
         source.onNext("hello", 4);
 
-        s2.unsubscribe();
-        s3.unsubscribe();
+        s2.dispose();
+        s3.dispose();
 
         testSubscriber2.assertValues(3, 4);
     }
@@ -146,34 +152,98 @@ public class SubjectMapTest
     {
         // setup
         AtomicInteger counter = new AtomicInteger(0);
-        Subscription faultSubscription = source.faults()
+        Disposable faultSubscription = source.faults()
                 .subscribe(new IncrementingFaultSatisfier<>(source, counter));
 
-        Observable<Integer> retainedObservable = source.get("hello");
+        Flowable<Integer> retainedObservable = source.get("hello");
         TestSubscriber<Integer> testSubscriber1 = new TestSubscriber<>();
         TestSubscriber<Integer> testSubscriber2 = new TestSubscriber<>();
 
-        Subscription s1 = retainedObservable.subscribe(testSubscriber1);
-        Subscription s2;
+        Disposable s1 = retainedObservable.subscribeWith(testSubscriber1);
+        Disposable s2;
 
         testSubscriber1.assertValues(1);
 
-        s1.unsubscribe();
+        s1.dispose();
 
         testSubscriber1.assertValues(1);
 
-        Observable<Integer> retainedObservable2 = source.get("hello");
+        Flowable<Integer> retainedObservable2 = source.get("hello");
 
-        s1 = retainedObservable.subscribe(testSubscriber1);
-
-        testSubscriber1.assertValues(1);
-
-        s2 = retainedObservable.subscribe(testSubscriber2);
+        s1 = retainedObservable.subscribeWith(testSubscriber1);
 
         testSubscriber1.assertValues(1);
 
-        s1.unsubscribe();
-        s2.unsubscribe();
+        s2 = retainedObservable.subscribeWith(testSubscriber2);
+
+        testSubscriber1.assertValues(1);
+
+        s1.dispose();
+        s2.dispose();
+
+        // cleanup
+        faultSubscription.dispose();
+    }
+
+    public void testMissHandling()
+    {
+        // setup
+        final AtomicBoolean missHandlerCalled = new AtomicBoolean(false);
+        AtomicInteger counter = new AtomicInteger(0);
+        Disposable faultSubscription = source.faults()
+                .subscribe(new IncrementingFaultSatisfier<>(source, counter));
+
+        TestSubscriber<Integer> testSubscriber1 = new TestSubscriber<>();
+
+        subscribe(source.get("hello"), testSubscriber1);
+
+        source.onNext("hello2", new Callable<Integer>() {
+            @Override
+            public Integer call() throws Exception
+            {
+                fail("Value should not be accessed");
+                return 13;
+            }
+        }, new Action() {
+            @Override
+            public void run()
+            {
+                missHandlerCalled.set(true);
+            }
+        });
+
+        assertTrue(missHandlerCalled.get());
+
+        testSubscriber1.assertValues(1);
+
+        // cleanup
+        faultSubscription.dispose();
+    }
+
+    @Test
+    public void testErrorHandlingInValueProvider()
+    {
+        // setup
+        final AtomicBoolean missHandlerCalled = new AtomicBoolean(false);
+        TestSubscriber<Integer> testSubscriber1 = new TestSubscriber<>();
+
+        subscribe(source.get("hello"), testSubscriber1);
+
+        source.onNext("hello", new Callable<Integer>() {
+            @Override
+            public Integer call() throws Exception
+            {
+                throw new RuntimeException("Boom");
+            }
+        }, new Action() {
+            @Override
+            public void run()
+            {
+                missHandlerCalled.set(true);
+            }
+        });
+
+        testSubscriber1.assertError(RuntimeException.class);
     }
 
     @Test
@@ -181,7 +251,7 @@ public class SubjectMapTest
     {
         // setup
         AtomicInteger counter = new AtomicInteger(0);
-        Subscription faultSubscription = source.faults()
+        Disposable faultSubscription = source.faults()
                 .subscribe(new IncrementingFaultSatisfier<>(source, counter));
 
         TestSubscriber<Integer> testSubscriber1 = new TestSubscriber<>();
@@ -217,7 +287,74 @@ public class SubjectMapTest
         testSubscriber3.assertValues(10, 11);
 
         // cleanup
-        faultSubscription.unsubscribe();
+        faultSubscription.dispose();
+    }
+
+    @Test
+    public void testExceptionHandlingFault()
+    {
+        // setup
+        final AtomicBoolean exceptionEncountered = new AtomicBoolean(false);
+        final AtomicInteger counter = new AtomicInteger(0);
+        Disposable faultSubscription = source.faults()
+                .subscribe(new Consumer<String>() {
+                    @Override
+                    public void accept(String key) {
+                        if (counter.incrementAndGet() <= 1) {
+                            throw new RuntimeException("Explosions!");
+                        }
+
+                        source.onNext(key, counter.get());
+                    }
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) {
+                        assertTrue(throwable instanceof RuntimeException);
+
+                        exceptionEncountered.set(true);
+                    }
+                });
+
+        TestSubscriber<Integer> testSubscriber1 = new TestSubscriber<>();
+        Flowable<Integer> helloValue = source.get("hello");
+
+        subscribe(helloValue, testSubscriber1);
+
+        testSubscriber1.assertNoValues();
+
+        assertTrue(exceptionEncountered.get());
+
+        // cleanup
+        faultSubscription.dispose();
+    }
+
+    @Test
+    public void testPruningUnsubscribedObservables()
+    {
+        // setup
+        AtomicInteger counter = new AtomicInteger(0);
+        Disposable faultSubscription = source.faults()
+                .subscribe(new IncrementingFaultSatisfier<>(source, counter));
+
+        TestSubscriber<Integer> testSubscriber = new TestSubscriber<>();
+
+        @SuppressWarnings("unused")
+        Flowable<Integer> helloValue = source.get("hello");
+
+        helloValue = null;
+
+        System.gc();
+
+        subscribe(source.get("hello"), testSubscriber);
+
+        testSubscriber.assertValues(1);
+
+        source.onNext("hello", 11);
+
+        testSubscriber.assertValues(1, 11);
+
+        // cleanup
+        faultSubscription.dispose();
     }
 
     @Test
@@ -238,9 +375,9 @@ public class SubjectMapTest
 
             keys[i] = "run-" + i;
 
-            subscribe(source.get(keys[i]), new Subscriber<Integer>() {
+            subscribe(source.get(keys[i]), new DisposableSubscriber<Integer>() {
                 @Override
-                public void onCompleted()
+                public void onComplete()
                 {
                     fail("Unexpected completion on observable");
                 }
@@ -279,32 +416,32 @@ public class SubjectMapTest
             System.gc();
 
             final AtomicInteger counter = new AtomicInteger(0);
-            final Observable<Integer> valueObservable = source.get("test");
+            final Flowable<Integer> valueObservable = source.get("test");
 
-            final Callable<Subscription> queryCallable = new Callable<Subscription>() {
+            final Callable<Disposable> queryCallable = new Callable<Disposable>() {
 
                 final int index = globalCounter.incrementAndGet();
 
                 @Override
-                public Subscription call() throws Exception
+                public Disposable call() throws Exception
                 {
-                    return valueObservable.subscribe(new Action1<Integer>() {
+                    return valueObservable.subscribe(new Consumer<Integer>() {
                         @Override
-                        public void call(Integer integer)
+                        public void accept(Integer integer)
                         {
                             counter.incrementAndGet();
                         }
                     });
                 }
             };
-            List<Callable<Subscription>> callables = new ArrayList<>();
+            List<Callable<Disposable>> callables = new ArrayList<>();
 
             for (int i = 0; i < subscriberCount; ++i) {
                 callables.add(queryCallable);
             }
 
-            List<Future<Subscription>> futures = executorService.invokeAll(callables);
-            List<Subscription> subscriptions = new ArrayList<>();
+            List<Future<Disposable>> futures = executorService.invokeAll(callables);
+            List<Disposable> subscriptions = new ArrayList<>();
 
             for (int i = 0; i < subscriberCount; ++i) {
                 subscriptions.add(futures.get(i).get());
@@ -315,9 +452,9 @@ public class SubjectMapTest
             assertEquals(subscriberCount, counter.get());
 
             for (int i = 0; i < subscriberCount; ++i) {
-                Subscription subscription = subscriptions.get(i);
+                Disposable subscription = subscriptions.get(i);
 
-                subscription.unsubscribe();
+                subscription.dispose();
             }
         }
     }
@@ -333,27 +470,27 @@ public class SubjectMapTest
 
             final AtomicInteger counter = new AtomicInteger(0);
 
-            Callable<Observable<Integer>> queryCallable = new Callable<Observable<Integer>>() {
+            Callable<Flowable<Integer>> queryCallable = new Callable<Flowable<Integer>>() {
                 @Override
-                public Observable<Integer> call() throws Exception
+                public Flowable<Integer> call() throws Exception
                 {
                     return source.get("test");
                 }
             };
-            List<Callable<Observable<Integer>>> callables = new ArrayList<>();
+            List<Callable<Flowable<Integer>>> callables = new ArrayList<>();
 
             for (int i = 0; i < subscriberCount; ++i) {
                 callables.add(queryCallable);
             }
 
-            List<Future<Observable<Integer>>> futures = executorService.invokeAll(callables);
+            List<Future<Flowable<Integer>>> futures = executorService.invokeAll(callables);
 
             for (int i = 0; i < subscriberCount; ++i) {
-                Observable<Integer> observable = futures.get(i).get();
+                Flowable<Integer> observable = futures.get(i).get();
 
-                subscribe(observable, new Action1<Integer>() {
+                subscribe(observable, new Consumer<Integer>() {
                     @Override
-                    public void call(Integer value)
+                    public void accept(Integer value)
                     {
                         counter.incrementAndGet();
                     }
@@ -373,7 +510,7 @@ public class SubjectMapTest
     {
         // setup
         AtomicInteger counter = new AtomicInteger(0);
-        Subscription faultSubscription = source.faults()
+        Disposable faultSubscription = source.faults()
                 .subscribe(new IncrementingFaultSatisfier<>(source, counter));
 
         TestSubscriber<Integer> testSubscriber1 = new TestSubscriber<>();
@@ -404,6 +541,6 @@ public class SubjectMapTest
         testSubscriber3.assertValues(2);
 
         // cleanup
-        faultSubscription.unsubscribe();
+        faultSubscription.dispose();
     }
 }
