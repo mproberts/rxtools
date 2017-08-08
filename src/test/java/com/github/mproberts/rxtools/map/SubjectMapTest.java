@@ -412,7 +412,7 @@ public class SubjectMapTest
         final int subscriberCount = 50;
         ExecutorService executorService = Executors.newFixedThreadPool(subscriberCount);
 
-        for (int j = 0; j < 10; ++j) {
+        for (int j = 0; j < 50; ++j) {
             System.gc();
 
             final AtomicInteger counter = new AtomicInteger(0);
@@ -448,6 +448,12 @@ public class SubjectMapTest
             }
 
             source.onNext("test", 1);
+
+            for (int i = 0; i < 10; ++i) {
+                if (counter.get() != subscriberCount) {
+                    Thread.sleep(10);
+                }
+            }
 
             assertEquals(subscriberCount, counter.get());
 
@@ -498,6 +504,12 @@ public class SubjectMapTest
             }
 
             source.onNext("test", 1);
+
+            for (int i = 0; i < 10; ++i) {
+                if (counter.get() != subscriberCount) {
+                    Thread.sleep(10);
+                }
+            }
 
             assertEquals(subscriberCount, counter.get());
 
