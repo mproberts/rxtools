@@ -406,26 +406,6 @@ class ConcatList implements List
     }
 
     @Override
-    public String toString()
-    {
-        StringBuilder builder = new StringBuilder("[");
-
-        for (int i = 0; i < size(); ++i) {
-            Object o = get(i);
-
-            if (builder.length() > 1) {
-                builder.append(", ");
-            }
-
-            builder.append(o.toString());
-        }
-
-        builder.append("]");
-
-        return builder.toString();
-    }
-
-    @Override
     public boolean contains(Object o)
     {
         throw new UnsupportedOperationException("Search operations not available");

@@ -37,6 +37,29 @@ public class TransformFlowableListTest
     }
 
     @Test
+    public void testWeakTransform()
+    {
+        TestSubscriber<Update<Integer>> testSubscriber = new TestSubscriber<>();
+
+        SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3));
+        FlowableList<Integer> transformedList = list.weakTransform(new Function<Integer, Integer>() {
+            @Override
+            public Integer apply(Integer integer) {
+                return integer + 12;
+            }
+        });
+
+        transformedList.updates().subscribe(testSubscriber);
+
+        testSubscriber.assertValueCount(1);
+
+        List<Update<Integer>> onNextEvents = testSubscriber.values();
+
+        assertEquals(Arrays.asList(Change.reloaded()), onNextEvents.get(0).changes);
+        assertEquals(Arrays.asList(13, 14, 15), onNextEvents.get(0).list);
+    }
+
+    @Test
     public void testSubjectMapTransform()
     {
         TestSubscriber<Update<Flowable<String>>> testSubscriber = new TestSubscriber<>();

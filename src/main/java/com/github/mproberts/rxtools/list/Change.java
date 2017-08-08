@@ -10,10 +10,17 @@ public class Change
      */
     public enum Type
     {
-        Moved,
-        Inserted,
-        Removed,
-        Reloaded
+        Moved(0),
+        Inserted(1),
+        Removed(2),
+        Reloaded(3);
+
+        final int value;
+
+        Type(int value)
+        {
+            this.value = value;
+        }
     }
 
     public final Type type;
@@ -99,23 +106,6 @@ public class Change
     @Override
     public int hashCode()
     {
-        int typeId = 0;
-
-        switch (type) {
-            case Moved:
-                typeId = 0;
-                break;
-            case Inserted:
-                typeId = 1;
-                break;
-            case Removed:
-                typeId = 2;
-                break;
-            case Reloaded:
-                typeId = 3;
-                break;
-        }
-
-        return (typeId << 3) | (from) | (to << 16);
+        return (type.value << 3) | (from) | (to << 16);
     }
 }

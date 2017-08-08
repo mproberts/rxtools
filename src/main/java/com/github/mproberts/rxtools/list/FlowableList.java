@@ -8,9 +8,8 @@ import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 import io.reactivex.functions.Function3;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.lang.ref.WeakReference;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -134,6 +133,43 @@ public abstract class FlowableList<T>
             public List<R> apply(List<T> list)
             {
                 return new TransformList.SimpleTransformList<>(list, transform);
+            }
+        });
+    }
+
+    /**
+     * Weakly-memoizes transform results caching results for subsequent calls
+     * @param transform A function transforming the source to the target type
+     * @param <R> The type of the mapped value
+     * @return A new FlowableList which has values mapped via the supplied transform
+     */
+    public <R> FlowableList<R> weakTransform(final Function<T, R> transform)
+    {
+        final Map<T, WeakReference<R>> weakMap = new HashMap<>();
+        final FlowableList<T> list = this;
+
+        return new TransformFlowableList<>(list, new Function<List<T>, List<R>>() {
+            @Override
+            public List<R> apply(List<T> list)
+            {
+                return new TransformList.SimpleTransformList<>(list, new Function<T, R>() {
+                    @Override
+                    public R apply(T t) throws Exception {
+                        WeakReference<R> ref = weakMap.get(t);
+                        R value = null;
+
+                        if (ref != null) {
+                            value = ref.get();
+                        }
+
+                        if (value == null) {
+                            value = transform.apply(t);
+                            weakMap.put(t, new WeakReference<>(value));
+                        }
+
+                        return value;
+                    }
+                });
             }
         });
     }

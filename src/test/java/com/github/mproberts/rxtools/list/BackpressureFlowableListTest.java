@@ -95,4 +95,29 @@ public class BackpressureFlowableListTest
 
         testSubscriber.dispose();
     }
+
+    @Test
+    public void testBufferingWithNoUpdates() throws InterruptedException
+    {
+        TestScheduler testScheduler = new TestScheduler();
+        SimpleFlowableList<Integer> list = new SimpleFlowableList<>();
+        FlowableList<Integer> bufferedList = list.buffer(50, TimeUnit.MILLISECONDS, testScheduler);
+
+        TestSubscriber testSubscriber = new TestSubscriber();
+
+        bufferedList.updates().subscribe(testSubscriber);
+
+        testScheduler.advanceTimeBy(50, TimeUnit.MILLISECONDS);
+        testScheduler.triggerActions();
+        testSubscriber.awaitCount(1);
+
+        testSubscriber.assertNoErrors();
+        testSubscriber.assertValueCount(1);
+
+        testScheduler.advanceTimeBy(50, TimeUnit.MILLISECONDS);
+        testScheduler.triggerActions();
+        testSubscriber.awaitCount(1);
+
+        testSubscriber.dispose();
+    }
 }
