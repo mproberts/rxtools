@@ -27,10 +27,8 @@ abstract class TransformList<K, V> implements List<V>
                 return _transform.apply(value);
             }
             catch (Exception e) {
-                e.printStackTrace();
+                throw new RuntimeException(e);
             }
-
-            return null;
         }
 
         @Override
@@ -62,10 +60,6 @@ abstract class TransformList<K, V> implements List<V>
         {
             K next = _iterator.next();
             ++_index;
-
-            if (next == null) {
-                return null;
-            }
 
             try {
                 return transform(next, _index);

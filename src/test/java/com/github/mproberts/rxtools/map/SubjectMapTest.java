@@ -410,7 +410,7 @@ public class SubjectMapTest
     {
         final AtomicInteger globalCounter = new AtomicInteger(0);
         final int subscriberCount = 50;
-        ExecutorService executorService = Executors.newWorkStealingPool(subscriberCount);
+        ExecutorService executorService = Executors.newFixedThreadPool(subscriberCount);
 
         for (int j = 0; j < 10; ++j) {
             System.gc();
@@ -463,7 +463,7 @@ public class SubjectMapTest
     public void testThrashQuery() throws InterruptedException, ExecutionException
     {
         final int subscriberCount = 50;
-        ExecutorService executorService = Executors.newWorkStealingPool(subscriberCount);
+        ExecutorService executorService = Executors.newFixedThreadPool(subscriberCount);
 
         for (int j = 0; j < 10; ++j) {
             System.gc();
