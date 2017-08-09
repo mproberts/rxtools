@@ -19,7 +19,7 @@ public class TransformFlowableListTest
         TestSubscriber<Update<Integer>> testSubscriber = new TestSubscriber<>();
 
         SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3));
-        FlowableList<Integer> transformedList = list.transform(new Function<Integer, Integer>() {
+        FlowableList<Integer> transformedList = list.map(new Function<Integer, Integer>() {
             @Override
             public Integer apply(Integer integer) {
                 return integer + 12;
@@ -42,7 +42,7 @@ public class TransformFlowableListTest
         TestSubscriber<Update<Integer>> testSubscriber = new TestSubscriber<>();
 
         SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3));
-        FlowableList<Integer> transformedList = list.weakTransform(new Function<Integer, Integer>() {
+        FlowableList<Integer> transformedList = list.cachedMap(new Function<Integer, Integer>() {
             @Override
             public Integer apply(Integer integer) {
                 return integer + 12;
@@ -70,7 +70,7 @@ public class TransformFlowableListTest
 
         SubjectMap<Integer, String> subjectMap = new SubjectMap<>();
         SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3));
-        FlowableList<Flowable<String>> transformedList = list.transform(subjectMap);
+        FlowableList<Flowable<String>> transformedList = list.map(subjectMap);
 
         transformedList.updates().subscribe(testSubscriber);
 

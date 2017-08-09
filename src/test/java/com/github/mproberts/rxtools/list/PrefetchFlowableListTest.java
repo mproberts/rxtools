@@ -19,7 +19,7 @@ public class PrefetchFlowableListTest
         TestSubscriber<Update<Integer>> testSubscriber = new TestSubscriber<>();
 
         SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-        FlowableList<Integer> transformedList = list.transform(new Function<Integer, Integer>() {
+        FlowableList<Integer> transformedList = list.map(new Function<Integer, Integer>() {
             @Override
             public Integer apply(Integer value) {
                 fetches.add(value);
@@ -61,7 +61,7 @@ public class PrefetchFlowableListTest
         TestSubscriber<Update<Integer>> testSubscriber = new TestSubscriber<>();
 
         SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-        FlowableList<Integer> transformedList = list.transform(new Function<Integer, Integer>() {
+        FlowableList<Integer> transformedList = list.map(new Function<Integer, Integer>() {
             @Override
             public Integer apply(Integer value) {
                 fetches.add(value);
@@ -103,7 +103,7 @@ public class PrefetchFlowableListTest
         TestSubscriber<Update<Integer>> testSubscriber = new TestSubscriber<>();
 
         SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-        FlowableList<Integer> transformedList = list.transform(new Function<Integer, Integer>() {
+        FlowableList<Integer> transformedList = list.map(new Function<Integer, Integer>() {
             @Override
             public Integer apply(Integer value) {
                 fetches.add(value);

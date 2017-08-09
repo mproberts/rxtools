@@ -1,7 +1,7 @@
 package com.github.mproberts.rxtools.list;
 
 import com.github.mproberts.rxtools.map.SubjectMap;
-import com.github.mproberts.rxtools.types.Item;
+import com.github.mproberts.rxtools.types.Optional;
 import io.reactivex.Flowable;
 import io.reactivex.Scheduler;
 import io.reactivex.functions.Consumer;
@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Represents a list with changes to the underlying dataset being emitted as updates including
- * a copy of the data and a changeset to transform from one list state to the next.
+ * a copy of the data and a changeset to map from one list state to the next.
  * @param <T> The value type of the list
  */
 public abstract class FlowableList<T>
@@ -139,12 +139,12 @@ public abstract class FlowableList<T>
     }
 
     /**
-     * Wraps the supplied list, calling the transform method when the get method is called for a specific index.
+     * Wraps the supplied list, calling the map method when the get method is called for a specific index.
      * @param transform A function transforming the source to the target type
      * @param <R> The type of the mapped value
-     * @return A new FlowableList which has values mapped via the supplied transform
+     * @return A new FlowableList which has values mapped via the supplied map
      */
-    public <R> FlowableList<R> transform(final Function<T, R> transform)
+    public <R> FlowableList<R> map(final Function<T, R> transform)
     {
         final FlowableList<T> list = this;
 
@@ -158,12 +158,29 @@ public abstract class FlowableList<T>
     }
 
     /**
-     * Weakly-memoizes transform results caching results for subsequent calls
+     * See {@link #map(Function map)}.
+     * @param mapping A SubjectMap used to maps input keys onto observable values
+     * @param <R> The type of the mapped value
+     * @return A new FlowableList which has values mapped via the supplied SubjectMap
+     */
+    public <R> FlowableList<Flowable<R>> map(final SubjectMap<T, R> mapping)
+    {
+        return map(new Function<T, Flowable<R>>() {
+            @Override
+            public Flowable<R> apply(T t)
+            {
+                return mapping.get(t);
+            }
+        });
+    }
+
+    /**
+     * Weakly-memoizes map results caching results for subsequent calls
      * @param transform A function transforming the source to the target type
      * @param <R> The type of the mapped value
-     * @return A new FlowableList which has values mapped via the supplied transform
+     * @return A new FlowableList which has values mapped via the supplied map
      */
-    public <R> FlowableList<R> weakTransform(final Function<T, R> transform)
+    public <R> FlowableList<R> cachedMap(final Function<T, R> transform)
     {
         final Map<T, WeakReference<R>> weakMap = new HashMap<>();
         final FlowableList<T> list = this;
@@ -195,16 +212,35 @@ public abstract class FlowableList<T>
     }
 
     /**
-     * Transforms the list using the supplied transform. The transform will receive a Flowable
+     * Transforms the list using the supplied map. The map will receive a Flowable
      * bound to the previous and next items in the list. The previous and next Flowables will emit
      * when the item moves within the list or when items surrounding the list are moved.
      * @param transform A function transforming the source to the target type
      * @param <R> The type of the mapped value
-     * @return A new FlowableList which has values mapped via the supplied transform
+     * @return A new FlowableList which has values mapped via the supplied map
      */
-    public <R> FlowableList<R> indexedTransform(final Function3<T, Flowable<Item<T>>, Flowable<Item<T>>, R> transform)
+    public <R> FlowableList<R> indexedMap(final Function3<T, Flowable<Optional<T>>, Flowable<Optional<T>>, R> transform)
     {
         return new IndexedFlowableList<>(this, transform);
+    }
+
+    /**
+     * Calls the supplied prefetch method on the amount before and after a requested index on every get call. This is
+     * useful for flowable lists of indexes which can be prefetched before a scroll event or as a new batch of content
+     * is requested.
+     * @param beforeAmount The number of items to prefetch after the current index
+     * @param afterAmount The number of items to prefetch after the current index
+     * @return A new FlowableList which prefetches the surrounding items on a query
+     */
+    public FlowableList<T> prefetch(final int beforeAmount, final int afterAmount)
+    {
+        return prefetch(beforeAmount, afterAmount, new Consumer<Collection<T>>() {
+            @Override
+            public void accept(Collection<T> ts) throws Exception
+            {
+                // intentional noop
+            }
+        });
     }
 
     /**
@@ -224,23 +260,6 @@ public abstract class FlowableList<T>
             @Override
             public List<T> apply(List<T> list) throws Exception {
                 return new PrefetchList<>(list, beforeAmount, afterAmount, fetcher);
-            }
-        });
-    }
-
-    /**
-     * See {@link #transform(Function transform)}.
-     * @param mapping A SubjectMap used to maps input keys onto observable values
-     * @param <R> The type of the mapped value
-     * @return A new FlowableList which has values mapped via the supplied SubjectMap
-     */
-    public <R> FlowableList<Flowable<R>> transform(final SubjectMap<T, R> mapping)
-    {
-        return transform(new Function<T, Flowable<R>>() {
-            @Override
-            public Flowable<R> apply(T t)
-            {
-                return mapping.get(t);
             }
         });
     }
