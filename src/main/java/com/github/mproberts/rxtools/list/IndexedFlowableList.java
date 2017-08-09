@@ -1,6 +1,6 @@
 package com.github.mproberts.rxtools.list;
 
-import com.github.mproberts.rxtools.types.Item;
+import com.github.mproberts.rxtools.types.Optional;
 import io.reactivex.BackpressureStrategy;
 import io.reactivex.Flowable;
 import io.reactivex.FlowableEmitter;
@@ -16,15 +16,15 @@ import java.util.List;
 public class IndexedFlowableList<T, R> extends FlowableList<R>
 {
     private final FlowableList<T> _list;
-    private final Function3<T, Flowable<Item<T>>, Flowable<Item<T>>, R> _transform;
+    private final Function3<T, Flowable<Optional<T>>, Flowable<Optional<T>>, R> _transform;
     private List<IndexHolder<T>> _indexList = new ArrayList<>();
 
     private static class IndexHolder<T>
     {
         private final List<T> _internalList;
         private int _index;
-        private WeakReference<PublishProcessor<Item<T>>> _previous;
-        private WeakReference<PublishProcessor<Item<T>>> _next;
+        private WeakReference<PublishProcessor<Optional<T>>> _previous;
+        private WeakReference<PublishProcessor<Optional<T>>> _next;
         private boolean _previousDirty;
         private boolean _nextDirty;
 
@@ -33,7 +33,7 @@ public class IndexedFlowableList<T, R> extends FlowableList<R>
             this(index, internalList, null, null);
         }
 
-        private IndexHolder(int index, List<T> internalList, WeakReference<PublishProcessor<Item<T>>> previous, WeakReference<PublishProcessor<Item<T>>> next)
+        private IndexHolder(int index, List<T> internalList, WeakReference<PublishProcessor<Optional<T>>> previous, WeakReference<PublishProcessor<Optional<T>>> next)
         {
             _index = index;
             _internalList = internalList;
@@ -66,9 +66,9 @@ public class IndexedFlowableList<T, R> extends FlowableList<R>
             _nextDirty = true;
         }
 
-        public PublishProcessor<Item<T>> getPrevious()
+        public PublishProcessor<Optional<T>> getPrevious()
         {
-            PublishProcessor<Item<T>> processor = _previous != null ? _previous.get() : null;
+            PublishProcessor<Optional<T>> processor = _previous != null ? _previous.get() : null;
 
             if (processor == null) {
                 processor = PublishProcessor.create();
@@ -78,9 +78,9 @@ public class IndexedFlowableList<T, R> extends FlowableList<R>
             return processor;
         }
 
-        public PublishProcessor<Item<T>> getNext()
+        public PublishProcessor<Optional<T>> getNext()
         {
-            PublishProcessor<Item<T>> processor = _next != null ? _next.get() : null;
+            PublishProcessor<Optional<T>> processor = _next != null ? _next.get() : null;
 
             if (processor == null) {
                 processor = PublishProcessor.create();
@@ -92,13 +92,13 @@ public class IndexedFlowableList<T, R> extends FlowableList<R>
 
         public boolean isActive()
         {
-            PublishProcessor<Item<T>> next = _next.get();
+            PublishProcessor<Optional<T>> next = _next.get();
 
             if (next != null) {
                 return true;
             }
 
-            PublishProcessor<Item<T>> previous = _previous.get();
+            PublishProcessor<Optional<T>> previous = _previous.get();
 
             return previous != null;
         }
@@ -112,18 +112,18 @@ public class IndexedFlowableList<T, R> extends FlowableList<R>
             _nextDirty = false;
             _previousDirty = false;
 
-            PublishProcessor<Item<T>> next = _next.get();
-            PublishProcessor<Item<T>> previous = _previous.get();
+            PublishProcessor<Optional<T>> next = _next.get();
+            PublishProcessor<Optional<T>> previous = _previous.get();
 
             if (previousDirty) {
                 if (previous != null) {
-                    Item<T> item;
+                    Optional<T> item;
 
                     if (index > 0) {
-                        item = new Item<>(_internalList.get(index - 1));
+                        item = Optional.ofNullable(_internalList.get(index - 1));
                     }
                     else {
-                        item = Item.invalid();
+                        item = Optional.empty();
                     }
 
                     previous.onNext(item);
@@ -132,13 +132,13 @@ public class IndexedFlowableList<T, R> extends FlowableList<R>
 
             if (nextDirty) {
                 if (next != null) {
-                    Item<T> item;
+                    Optional<T> item;
 
                     if (index < _internalList.size() - 1) {
-                        item = new Item<>(_internalList.get(index + 1));
+                        item = Optional.ofNullable(_internalList.get(index + 1));
                     }
                     else {
-                        item = Item.invalid();
+                        item = Optional.empty();
                     }
 
                     next.onNext(item);
@@ -182,34 +182,34 @@ public class IndexedFlowableList<T, R> extends FlowableList<R>
             try {
                 final IndexHolder<T> mappedIndex = getIndexHolder(index, true, list, _indexList);
 
-                PublishProcessor<Item<T>> previous = mappedIndex.getPrevious();
-                PublishProcessor<Item<T>> next = mappedIndex.getNext();
+                PublishProcessor<Optional<T>> previous = mappedIndex.getPrevious();
+                PublishProcessor<Optional<T>> next = mappedIndex.getNext();
 
                 R result = _transform.apply(
                         value,
-                        previous.startWith(Flowable.create(new FlowableOnSubscribe<Item<T>>() {
+                        previous.startWith(Flowable.create(new FlowableOnSubscribe<Optional<T>>() {
                             @Override
-                            public void subscribe(FlowableEmitter<Item<T>> e) throws Exception {
+                            public void subscribe(FlowableEmitter<Optional<T>> e) throws Exception {
                                 int index = mappedIndex.getIndex();
 
                                 if (index > 0) {
-                                    e.onNext(new Item<>(list.get(index - 1)));
+                                    e.onNext(Optional.ofNullable(list.get(index - 1)));
                                 } else {
-                                    e.onNext(Item.<T>invalid());
+                                    e.onNext(Optional.<T>empty());
                                 }
 
                                 e.onComplete();
                             }
                         }, BackpressureStrategy.LATEST)).replay(1).autoConnect(),
-                        next.startWith(Flowable.create(new FlowableOnSubscribe<Item<T>>() {
+                        next.startWith(Flowable.create(new FlowableOnSubscribe<Optional<T>>() {
                             @Override
-                            public void subscribe(FlowableEmitter<Item<T>> e) throws Exception {
+                            public void subscribe(FlowableEmitter<Optional<T>> e) throws Exception {
                                 int index = mappedIndex.getIndex();
 
                                 if (index < list.size() - 1) {
-                                    e.onNext(new Item<>(list.get(index + 1)));
+                                    e.onNext(Optional.ofNullable(list.get(index + 1)));
                                 } else {
-                                    e.onNext(Item.<T>invalid());
+                                    e.onNext(Optional.<T>empty());
                                 }
 
                                 e.onComplete();
@@ -230,7 +230,7 @@ public class IndexedFlowableList<T, R> extends FlowableList<R>
         }
     }
 
-    public IndexedFlowableList(FlowableList<T> list, Function3<T, Flowable<Item<T>>, Flowable<Item<T>>, R> transform)
+    public IndexedFlowableList(FlowableList<T> list, Function3<T, Flowable<Optional<T>>, Flowable<Optional<T>>, R> transform)
     {
         _list = list;
         _transform = transform;

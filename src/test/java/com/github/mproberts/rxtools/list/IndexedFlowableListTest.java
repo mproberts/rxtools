@@ -1,8 +1,9 @@
 package com.github.mproberts.rxtools.list;
 
-import com.github.mproberts.rxtools.types.Item;
+import com.github.mproberts.rxtools.types.Optional;
 import io.reactivex.Flowable;
 import io.reactivex.functions.BiFunction;
+import io.reactivex.functions.Function;
 import io.reactivex.functions.Function3;
 import io.reactivex.subscribers.TestSubscriber;
 import org.junit.Test;
@@ -14,18 +15,28 @@ import static org.junit.Assert.assertEquals;
 
 public class IndexedFlowableListTest
 {
-    protected TestSubscriber<Update<Flowable<String>>> createIndexedListt(FlowableList<Integer> list)
+    protected TestSubscriber<Update<Flowable<String>>> createIndexedList(FlowableList<Integer> list)
     {
-        FlowableList<Flowable<String>> transformedList = list.indexedTransform(new Function3<Integer, Flowable<Item<Integer>>, Flowable<Item<Integer>>, Flowable<String>>() {
+        FlowableList<Flowable<String>> transformedList = list.indexedMap(new Function3<Integer, Flowable<Optional<Integer>>, Flowable<Optional<Integer>>, Flowable<String>>() {
             @Override
-            public Flowable<String> apply(final Integer item, Flowable<Item<Integer>> previousItem, Flowable<Item<Integer>> nextItem) throws Exception
+            public Flowable<String> apply(final Integer item, Flowable<Optional<Integer>> previousItem, Flowable<Optional<Integer>> nextItem) throws Exception
             {
-                return Flowable.combineLatest(previousItem, nextItem, new BiFunction<Item<Integer>, Item<Integer>, String>() {
+                return Flowable.combineLatest(previousItem, nextItem, new BiFunction<Optional<Integer>, Optional<Integer>, String>() {
                     @Override
-                    public String apply(Item<Integer> previous, Item<Integer> next) throws Exception
+                    public String apply(Optional<Integer> previous, Optional<Integer> next) throws Exception
                     {
-                        String previousString = previous.exists() ? "" + previous.getValue() : "?";
-                        String nextString = next.exists() ? "" + next.getValue() : "?";
+                        String previousString = previous.map(new Function<Integer, String>() {
+                            @Override
+                            public String apply(Integer integer) throws Exception {
+                                return integer.toString();
+                            }
+                        }).orElse("?");
+                        String nextString = next.map(new Function<Integer, String>() {
+                            @Override
+                            public String apply(Integer integer) throws Exception {
+                                return integer.toString();
+                            }
+                        }).orElse("?");
 
                         return previousString + " < " + item + " > " + nextString;
                     }
@@ -41,7 +52,7 @@ public class IndexedFlowableListTest
     {
         SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3));
 
-        TestSubscriber<Update<Flowable<String>>> testSubscriber = createIndexedListt(list);
+        TestSubscriber<Update<Flowable<String>>> testSubscriber = createIndexedList(list);
 
         testSubscriber.assertValueCount(1);
 
@@ -81,7 +92,7 @@ public class IndexedFlowableListTest
     {
         SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3, 4));
 
-        TestSubscriber<Update<Flowable<String>>> testSubscriber = createIndexedListt(list);
+        TestSubscriber<Update<Flowable<String>>> testSubscriber = createIndexedList(list);
 
         testSubscriber.assertValueCount(1);
 
@@ -121,7 +132,7 @@ public class IndexedFlowableListTest
     {
         SimpleFlowableList<Integer> list = new SimpleFlowableList<>(Arrays.asList(1, 2, 3, 4));
 
-        TestSubscriber<Update<Flowable<String>>> testSubscriber = createIndexedListt(list);
+        TestSubscriber<Update<Flowable<String>>> testSubscriber = createIndexedList(list);
 
         testSubscriber.assertValueCount(1);
 
