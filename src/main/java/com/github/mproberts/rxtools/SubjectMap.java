@@ -230,15 +230,15 @@ public class SubjectMap<K, V>
      * to get will return a new observable and attempt to fault the value in
      *
      * @param key key with which the specified value is to be associated
-     * @param exception exception to be sent to the specified observable
+     * @param throwable throwable to be sent to the specified observable
      */
-    public void onError(K key, final Exception exception)
+    public void onError(K key, final Throwable throwable)
     {
         emitUpdate(key, new Action1<Subject<V, V>>() {
             @Override
             public void call(Subject<V, V> subject)
             {
-                subject.onError(exception);
+                subject.onError(throwable);
             }
         }, true);
     }
