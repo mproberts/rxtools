@@ -151,7 +151,9 @@ public class IndexedFlowableList<T, R> extends FlowableList<R>
     {
         IndexHolder<T> mappedIndex = null;
 
-        for (IndexHolder<T> indexHolder : indexList) {
+        for (int i = 0, l = indexList.size(); i < l; ++i) {
+            IndexHolder<T> indexHolder = indexList.get(i);
+
             if (indexHolder.getIndex() == index) {
                 mappedIndex = indexHolder;
                 break;
@@ -245,7 +247,9 @@ public class IndexedFlowableList<T, R> extends FlowableList<R>
             {
                 List<IndexHolder<T>> updatedIndex = new ArrayList<>(_indexList.size());
 
-                for (IndexHolder<T> holder : _indexList) {
+                for (int i = 0, l = _indexList.size(); i < l; ++i) {
+                    IndexHolder<T> holder = _indexList.get(i);
+
                     updatedIndex.add(holder.copy(update.list));
                 }
 
