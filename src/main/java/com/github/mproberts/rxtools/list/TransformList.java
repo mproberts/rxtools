@@ -246,7 +246,7 @@ abstract class TransformList<K, V> implements List<V>
     public V get(int index)
     {
         try {
-            return transform(_list.get(index), index);
+            return transform(getInternal(index), index);
         }
         catch (RuntimeException re) {
             throw re;

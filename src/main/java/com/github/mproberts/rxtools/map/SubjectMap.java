@@ -6,11 +6,7 @@ import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Action;
 import io.reactivex.functions.Consumer;
 import io.reactivex.processors.BehaviorProcessor;
-import io.reactivex.subjects.BehaviorSubject;
-import io.reactivex.subjects.Subject;
-import io.reactivex.subscribers.DisposableSubscriber;
 import org.reactivestreams.Processor;
-import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
 import java.lang.ref.WeakReference;

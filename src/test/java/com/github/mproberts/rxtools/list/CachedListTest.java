@@ -4,12 +4,12 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
-public class CacheListTest extends ListImplementationTest
+public class CachedListTest extends ListImplementationTest
 {
     @Override
     protected List getList()
     {
-        return new CacheList(Arrays.asList(1, 2, 3, 4, 5, 6, 7), 0, new HashMap<>(), new HashMap<>());
+        return new CachedList(Arrays.asList(1, 2, 3, 4, 5, 6, 7), 0, new HashMap<>(), new HashMap<>());
     }
 
     @Override
