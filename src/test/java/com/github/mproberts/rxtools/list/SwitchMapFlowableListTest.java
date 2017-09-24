@@ -9,7 +9,7 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-public class FlatMapFlowableListTest
+public class SwitchMapFlowableListTest
 {
     @Test
     public void testBasicTransform()

@@ -96,7 +96,7 @@ public abstract class FlowableList<T>
      */
     public static <T> FlowableList<T> flatten(Flowable<? extends FlowableList<T>> list)
     {
-        return new FlatMapFlowableList<>(list);
+        return new SwitchMapFlowableList<>(list);
     }
 
     /**
@@ -279,5 +279,17 @@ public abstract class FlowableList<T>
     public FlowableList<T> buffer(long timespan, TimeUnit unit, Scheduler scheduler)
     {
         return new BufferedFlowableList<>(this, timespan, unit, scheduler);
+    }
+
+    /**
+     * Wraps the supplied list with a caching system which will return instances
+     * which had previously been fetched reducing query time
+     * @param weakCacheSize The number of items to weakly-hold in a cache
+     * @param strongCacheSize The number of items to strongly-hold in a cache
+     * @return A new observable list with caching in place
+     */
+    public FlowableList<T> cache(int weakCacheSize, int strongCacheSize)
+    {
+        return new CachedFlowableList<>(this, weakCacheSize, strongCacheSize);
     }
 }
