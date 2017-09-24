@@ -30,7 +30,7 @@ class BufferedFlowableList<T> extends FlowableList<T>
     {
         return _list.updates()
                 .buffer(_timeSpan, _timeUnit, _scheduler)
-                .flatMap(new Function<List<Update<T>>, Publisher<Update<T>>>() {
+                .switchMap(new Function<List<Update<T>>, Publisher<Update<T>>>() {
                     @Override
                     public Publisher<Update<T>> apply(List<Update<T>> updates) throws Exception {
                         if (updates.size() == 0) {
