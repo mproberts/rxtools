@@ -409,10 +409,10 @@ public class SubjectMapTest
     public void testThrashSubscriptions() throws InterruptedException, ExecutionException
     {
         final AtomicInteger globalCounter = new AtomicInteger(0);
-        final int subscriberCount = 50;
+        final int subscriberCount = 25;
         ExecutorService executorService = Executors.newFixedThreadPool(subscriberCount);
 
-        for (int j = 0; j < 50; ++j) {
+        for (int j = 0; j < subscriberCount; ++j) {
             System.gc();
 
             final AtomicInteger counter = new AtomicInteger(0);

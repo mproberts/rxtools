@@ -15,6 +15,7 @@ import java.util.List;
 
 public class IndexedFlowableList<T, R> extends FlowableList<R>
 {
+    private final Flowable<Update<R>> _updates;
     private final FlowableList<T> _list;
     private final Function3<T, Flowable<Optional<T>>, Flowable<Optional<T>>, R> _transform;
     private List<IndexHolder<T>> _indexList = new ArrayList<>();
@@ -92,13 +93,21 @@ public class IndexedFlowableList<T, R> extends FlowableList<R>
 
         public boolean isActive()
         {
-            PublishProcessor<Optional<T>> next = _next.get();
+            PublishProcessor<Optional<T>> next = null;
+
+            if (_next != null) {
+                next = _next.get();
+            }
 
             if (next != null) {
                 return true;
             }
 
-            PublishProcessor<Optional<T>> previous = _previous.get();
+            PublishProcessor<Optional<T>> previous = null;
+
+            if (_previous != null) {
+                previous = _previous.get();
+            }
 
             return previous != null;
         }
@@ -112,8 +121,16 @@ public class IndexedFlowableList<T, R> extends FlowableList<R>
             _nextDirty = false;
             _previousDirty = false;
 
-            PublishProcessor<Optional<T>> next = _next.get();
-            PublishProcessor<Optional<T>> previous = _previous.get();
+            PublishProcessor<Optional<T>> next = null;
+            PublishProcessor<Optional<T>> previous = null;
+
+            if (_next != null) {
+                next = _next.get();
+            }
+
+            if (_previous != null) {
+                previous = _previous.get();
+            }
 
             if (previousDirty) {
                 if (previous != null) {
@@ -134,11 +151,13 @@ public class IndexedFlowableList<T, R> extends FlowableList<R>
                 if (next != null) {
                     Optional<T> item;
 
-                    if (index < _internalList.size() - 1) {
-                        item = Optional.ofNullable(_internalList.get(index + 1));
-                    }
-                    else {
-                        item = Optional.empty();
+                    synchronized (_internalList) {
+                        if (index < _internalList.size() - 1) {
+                            item = Optional.ofNullable(_internalList.get(index + 1));
+                        }
+                        else {
+                            item = Optional.empty();
+                        }
                     }
 
                     next.onNext(item);
@@ -151,19 +170,21 @@ public class IndexedFlowableList<T, R> extends FlowableList<R>
     {
         IndexHolder<T> mappedIndex = null;
 
-        for (int i = 0, l = indexList.size(); i < l; ++i) {
-            IndexHolder<T> indexHolder = indexList.get(i);
+        synchronized (indexList) {
+            for (int i = 0, l = indexList.size(); i < l; ++i) {
+                IndexHolder<T> indexHolder = indexList.get(i);
 
-            if (indexHolder.getIndex() == index) {
-                mappedIndex = indexHolder;
-                break;
+                if (indexHolder.getIndex() == index) {
+                    mappedIndex = indexHolder;
+                    break;
+                }
             }
-        }
 
-        if (mappedIndex == null && create) {
-            mappedIndex = new IndexHolder<>(index, list);
+            if (mappedIndex == null && create) {
+                mappedIndex = new IndexHolder<>(index, list);
 
-            indexList.add(mappedIndex);
+                indexList.add(mappedIndex);
+            }
         }
 
         return mappedIndex;
@@ -236,21 +257,17 @@ public class IndexedFlowableList<T, R> extends FlowableList<R>
     {
         _list = list;
         _transform = transform;
-    }
-
-    @Override
-    public Flowable<Update<R>> updates()
-    {
-        return _list.updates().map(new Function<Update<T>, Update<R>>() {
+        _updates = _list.updates().map(new Function<Update<T>, Update<R>>() {
             @Override
-            public Update<R> apply(Update<T> update) throws Exception
-            {
+            public Update<R> apply(Update<T> update) throws Exception {
                 List<IndexHolder<T>> updatedIndex = new ArrayList<>(_indexList.size());
 
-                for (int i = 0, l = _indexList.size(); i < l; ++i) {
-                    IndexHolder<T> holder = _indexList.get(i);
+                synchronized (_indexList) {
+                    for (int i = 0, l = _indexList.size(); i < l; ++i) {
+                        IndexHolder<T> holder = _indexList.get(i);
 
-                    updatedIndex.add(holder.copy(update.list));
+                        updatedIndex.add(holder.copy(update.list));
+                    }
                 }
 
                 for (Change change : update.changes) {
@@ -270,8 +287,7 @@ public class IndexedFlowableList<T, R> extends FlowableList<R>
                                 toNextIndexHolder = getIndexHolder(change.to, false, update.list, updatedIndex);
 
                                 adjustIndexes(change.to, change.from, +1, updatedIndex);
-                            }
-                            else {
+                            } else {
                                 previousIndexHolder = getIndexHolder(change.from - 1, false, update.list, updatedIndex);
                                 nextIndexHolder = getIndexHolder(change.from + 1, false, update.list, updatedIndex);
 
@@ -303,7 +319,7 @@ public class IndexedFlowableList<T, R> extends FlowableList<R>
                             IndexHolder<T> previousIndexHolder = getIndexHolder(change.from - 1, false, update.list, updatedIndex);
                             IndexHolder<T> nextIndexHolder = getIndexHolder(change.from + 1, false, update.list, updatedIndex);
 
-                            adjustIndexes(change.from, update.list.size(), - 1, updatedIndex);
+                            adjustIndexes(change.from, update.list.size(), -1, updatedIndex);
 
                             if (previousIndexHolder != null) {
                                 previousIndexHolder.setNextDirty();
@@ -354,6 +370,12 @@ public class IndexedFlowableList<T, R> extends FlowableList<R>
                 return new Update<>(new IndexedTransformList(update.list), update.changes);
             }
         });
+    }
+
+    @Override
+    public Flowable<Update<R>> updates()
+    {
+        return _updates;
     }
 
     private void adjustIndexes(int start, int end, int adjustment, List<IndexHolder<T>> indexList)
