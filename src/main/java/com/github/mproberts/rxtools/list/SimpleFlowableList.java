@@ -3,6 +3,7 @@ package com.github.mproberts.rxtools.list;
 import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -89,6 +90,20 @@ public class SimpleFlowableList<T> extends BaseFlowableList<T>
 
                     return new Update<>(resultList, allChanges);
                 }
+            }
+        });
+    }
+
+    /**
+     * Resets the flowable list to a 0-length state
+     */
+    public void clear()
+    {
+        applyOperation(new Function<List<T>, Update<T>>() {
+            @Override
+            public Update<T> apply(List<T> list)
+            {
+                return new Update<>(Arrays.<T>asList(), Change.reloaded());
             }
         });
     }

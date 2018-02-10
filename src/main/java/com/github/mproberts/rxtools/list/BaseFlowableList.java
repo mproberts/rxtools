@@ -1,7 +1,12 @@
 package com.github.mproberts.rxtools.list;
 
-import io.reactivex.*;
+import io.reactivex.BackpressureStrategy;
+import io.reactivex.Flowable;
+import io.reactivex.ObservableSource;
+import io.reactivex.Observer;
+import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Action;
+import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 import io.reactivex.subjects.PublishSubject;
 
@@ -18,6 +23,7 @@ class BaseFlowableList<T> extends FlowableList<T>
 
     private final AtomicLong _nowServing = new AtomicLong();
     private final AtomicLong _nextTicket = new AtomicLong();
+    private final AtomicLong _attachmentCount = new AtomicLong();
 
     private final ThreadLocal<Boolean> _isApplyingUpdate = new ThreadLocal<Boolean>() {
         @Override
@@ -117,6 +123,16 @@ class BaseFlowableList<T> extends FlowableList<T>
         }
     }
 
+    protected void onAttached()
+    {
+        // intentionally blank, to be overridden by descendants
+    }
+
+    protected void onDetached()
+    {
+        // intentionally blank, to be overridden by descendants
+    }
+
     @Override
     public Flowable<Update<T>> updates()
     {
@@ -138,6 +154,27 @@ class BaseFlowableList<T> extends FlowableList<T>
                                 observer.onComplete();
                             }
                         });
+                    }
+                })
+                .doOnLifecycle(new Consumer<Disposable>() {
+                    @Override
+                    public void accept(Disposable disposable) throws Exception {
+                        if (!disposable.isDisposed()) {
+                            long currentCount = _attachmentCount.getAndIncrement();
+
+                            if (currentCount == 0) {
+                                onAttached();
+                            }
+                        }
+                    }
+                }, new Action() {
+                    @Override
+                    public void run() throws Exception {
+                        long currentCount = _attachmentCount.decrementAndGet();
+
+                        if (currentCount == 0) {
+                            onDetached();
+                        }
                     }
                 })
                 .toFlowable(BackpressureStrategy.BUFFER);
