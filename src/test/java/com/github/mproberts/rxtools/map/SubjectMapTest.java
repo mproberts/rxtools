@@ -1,6 +1,5 @@
 package com.github.mproberts.rxtools.map;
 
-import com.github.mproberts.rxtools.map.SubjectMap;
 import io.reactivex.Flowable;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.disposables.Disposable;
