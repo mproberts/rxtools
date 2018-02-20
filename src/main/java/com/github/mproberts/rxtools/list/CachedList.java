@@ -22,6 +22,7 @@ class CachedList<T> extends TransformList<T, T>
     @Override
     protected T getInternal(int index)
     {
+        WeakReference<T> cachedRef = null;
         int offsetIndex = index;
         T value;
 
@@ -31,10 +32,10 @@ class CachedList<T> extends TransformList<T, T>
 
         if (value == null) {
             synchronized (_weakCache) {
-                WeakReference<T> ref = _weakCache.get(offsetIndex);
+                cachedRef = _weakCache.get(offsetIndex);
 
-                if (ref != null) {
-                    value = ref.get();
+                if (cachedRef != null) {
+                    value = cachedRef.get();
                 }
             }
         }
@@ -48,8 +49,12 @@ class CachedList<T> extends TransformList<T, T>
                 _strongCache.put(offsetIndex, value);
             }
 
+            if (cachedRef == null) {
+                cachedRef = new WeakReference<>(value);
+            }
+
             synchronized (_weakCache) {
-                _weakCache.put(offsetIndex, new WeakReference<>(value));
+                _weakCache.put(offsetIndex, cachedRef);
             }
         }
 
