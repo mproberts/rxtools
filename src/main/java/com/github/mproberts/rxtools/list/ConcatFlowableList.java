@@ -309,14 +309,17 @@ class ConcatFlowableList extends BaseFlowableList
 
     private ConcatList getCurrentList()
     {
-        List[] lists = new List[_subscriptions.size()];
-        int i = 0;
+        List<List> lists = new ArrayList<>();
 
         for (ListSubscription subscription : _subscriptions) {
-            lists[i++] = subscription.list();
+            List<?> list = subscription.list();
+
+            if (list != null) {
+                lists.add(list);
+            }
         }
 
-        return new ConcatList(lists);
+        return new ConcatList(lists.toArray(new List[lists.size()]));
     }
 
     private List<Change> adjustChanges(int fromOffset, int toOffset, List<Change> changes)
