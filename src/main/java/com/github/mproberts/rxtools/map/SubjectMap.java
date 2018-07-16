@@ -1,11 +1,5 @@
 package com.github.mproberts.rxtools.map;
 
-import io.reactivex.*;
-import io.reactivex.Flowable;
-import io.reactivex.disposables.Disposable;
-import io.reactivex.functions.Action;
-import io.reactivex.functions.Consumer;
-import io.reactivex.processors.BehaviorProcessor;
 import org.reactivestreams.Processor;
 import org.reactivestreams.Subscription;
 
@@ -18,10 +12,20 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import io.reactivex.BackpressureStrategy;
+import io.reactivex.Flowable;
+import io.reactivex.FlowableEmitter;
+import io.reactivex.FlowableOnSubscribe;
+import io.reactivex.FlowableSubscriber;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Action;
+import io.reactivex.functions.Consumer;
+import io.reactivex.processors.BehaviorProcessor;
+
 /**
  * SubjectMap manages the connection between an entity store and subscribers who are
  * interested in the updates to those entities.
- *
+ * <p>
  * The SubjectMap depends on the garbage collector to clean up unreferenced observables
  * when the weak references are automatically cleared. Subjects will be retained strongly
  * so long as a subscriber is subscribed and are weakly retained outside of that lifecycle.
@@ -335,6 +339,7 @@ public class SubjectMap<K, V>
      * manage the lifecycle of the observable internally
      *
      * @param key the key whose associated observable is to be returned
+     *
      * @return an observable which, when subscribed, will be bound to the specified key
      * and will receive all emissions and errors for the specified key
      */
@@ -393,6 +398,23 @@ public class SubjectMap<K, V>
         }
         finally {
             _readLock.unlock();
+        }
+    }
+
+    /**
+     * Clear all internal caches for this map.
+     * The map will be empty after this call returns.
+     */
+    public void clear()
+    {
+        _writeLock.lock();
+        try {
+            _cache.clear();
+            _weakSources.clear();
+            _weakCache.clear();
+        }
+        finally {
+            _writeLock.unlock();
         }
     }
 }
