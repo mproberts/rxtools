@@ -554,4 +554,41 @@ public class SubjectMapTest
         // cleanup
         faultSubscription.dispose();
     }
+
+    @Test
+    public void testClearingCacheDetachesSubscriber()
+    {
+        // setup
+        AtomicInteger counter = new AtomicInteger(0);
+        Disposable faultSubscription = source.faults()
+                .subscribe(new IncrementingFaultSatisfier<>(source, counter));
+
+        TestSubscriber<Integer> testSubscriber = new TestSubscriber<>();
+        TestSubscriber<Integer> testSubscriber2 = new TestSubscriber<>();
+
+
+        @SuppressWarnings("unused")
+        Flowable<Integer> helloValue = source.get("hello");
+
+        helloValue = null;
+
+        System.gc();
+
+        subscribe(source.get("hello"), testSubscriber);
+
+        testSubscriber.assertValues(1);
+
+        source.onNext("hello", 11);
+
+        source.clear();
+
+        subscribe(source.get("hello"), testSubscriber2);
+        source.onNext("hello", 22);
+
+        testSubscriber.assertValues(1, 11);
+        testSubscriber2.assertValues(2, 22);
+
+        // cleanup
+        faultSubscription.dispose();
+    }
 }
