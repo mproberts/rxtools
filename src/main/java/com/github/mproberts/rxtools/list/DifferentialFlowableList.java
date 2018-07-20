@@ -3,6 +3,7 @@ package com.github.mproberts.rxtools.list;
 import io.reactivex.*;
 import io.reactivex.functions.BiFunction;
 import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +41,12 @@ class DifferentialFlowableList<T> extends FlowableList<T>
                         _previousList = next.list;
 
                         return new Update<>(next.list, changes);
+                    }
+                })
+                .filter(new Predicate<Update<T>>() {
+                    @Override
+                    public boolean test(Update<T> update) throws Exception {
+                        return update.changes.size() > 0;
                     }
                 });
     }
