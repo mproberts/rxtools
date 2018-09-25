@@ -1,10 +1,14 @@
 package com.github.mproberts.rxtools.map;
 
 import io.reactivex.Flowable;
+import io.reactivex.Single;
+import io.reactivex.SingleEmitter;
+import io.reactivex.SingleOnSubscribe;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Action;
 import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
 import io.reactivex.subscribers.DisposableSubscriber;
 import io.reactivex.subscribers.TestSubscriber;
 import org.junit.After;
@@ -117,6 +121,110 @@ public class SubjectMapTest
 
         // cleanup
         faultSubscription.dispose();
+    }
+
+    @Test
+    public void testQueryAndIncrementOnFaultWithHandler()
+    {
+        // setup
+        final AtomicInteger counter = new AtomicInteger(0);
+
+        source.setFaultHandler(new Function<String, Single<Integer>>() {
+            @Override
+            public Single<Integer> apply(String s) throws Exception {
+                return Single.just(counter.incrementAndGet());
+            }
+        });
+
+        TestSubscriber<Integer> testSubscriber1 = new TestSubscriber<>();
+        TestSubscriber<Integer> testSubscriber2 = new TestSubscriber<>();
+        TestSubscriber<Integer> testSubscriber3 = new TestSubscriber<>();
+
+        subscribe(source.get("hello"), testSubscriber1);
+        System.gc();
+
+        testSubscriber1.assertValues(1);
+
+        subscribe(source.get("hello"), testSubscriber2);
+        System.gc();
+
+        testSubscriber1.assertValues(1);
+        testSubscriber2.assertValues(1);
+
+        unsubscribeAll();
+        System.gc();
+
+        subscribe(source.get("hello"), testSubscriber3);
+
+        testSubscriber3.assertValues(2);
+    }
+
+    @Test
+    public void testDelayedFaultHandling()
+    {
+        source.setFaultHandler(new Function<String, Single<Integer>>() {
+            @Override
+            public Single<Integer> apply(String s) throws Exception {
+                return Single.timer(100, TimeUnit.MILLISECONDS).map(new Function<Long, Integer>() {
+                    @Override
+                    public Integer apply(Long aLong) throws Exception {
+                        return 23;
+                    }
+                });
+            }
+        });
+
+        TestSubscriber<Integer> testSubscriber1 = new TestSubscriber<>();
+
+        subscribe(source.get("hello"), testSubscriber1);
+
+        testSubscriber1.awaitCount(1);
+        testSubscriber1.assertValues(23);
+    }
+
+    @Test
+    public void testDelayedFaultHandlingCancel()
+    {
+        final AtomicBoolean wasAttached = new AtomicBoolean(false);
+        final AtomicBoolean isDisposed = new AtomicBoolean(false);
+
+        source.setFaultHandler(new Function<String, Single<Integer>>() {
+            @Override
+            public Single<Integer> apply(String s) throws Exception {
+                return Single.create(new SingleOnSubscribe<Integer>() {
+                    @Override
+                    public void subscribe(SingleEmitter<Integer> singleEmitter) throws Exception {
+                        wasAttached.set(true);
+
+                        Disposable disposable = new Disposable() {
+
+                            @Override
+                            public void dispose() {
+                                isDisposed.set(true);
+                            }
+
+                            @Override
+                            public boolean isDisposed() {
+                                return isDisposed.get();
+                            }
+                        };
+
+                        singleEmitter.setDisposable(disposable);
+                    }
+                });
+            }
+        });
+
+        TestSubscriber<Integer> testSubscriber1 = new TestSubscriber<>();
+
+        subscribe(source.get("hello"), testSubscriber1);
+
+        assertTrue(wasAttached.get());
+        assertFalse(isDisposed.get());
+
+        testSubscriber1.dispose();
+
+        assertTrue(isDisposed.get());
     }
 
     @Test

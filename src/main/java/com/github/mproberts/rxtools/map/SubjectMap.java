@@ -1,5 +1,8 @@
 package com.github.mproberts.rxtools.map;
 
+import io.reactivex.*;
+import io.reactivex.functions.BiConsumer;
+import io.reactivex.functions.Function;
 import org.reactivestreams.Processor;
 import org.reactivestreams.Subscription;
 
@@ -12,11 +15,6 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import io.reactivex.BackpressureStrategy;
-import io.reactivex.Flowable;
-import io.reactivex.FlowableEmitter;
-import io.reactivex.FlowableOnSubscribe;
-import io.reactivex.FlowableSubscriber;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Action;
 import io.reactivex.functions.Consumer;
@@ -52,6 +50,8 @@ public class SubjectMap<K, V>
 
     private final BehaviorProcessor<K> _faults;
 
+    private Function<K, Single<V>> _faultHandler;
+
     private class OnSubscribeAttach implements FlowableOnSubscribe<V>
     {
         private final AtomicBoolean _isFirstFault = new AtomicBoolean(true);
@@ -67,12 +67,42 @@ public class SubjectMap<K, V>
         public void subscribe(final FlowableEmitter<V> emitter) throws Exception
         {
             boolean isFirst = _isFirstFault.getAndSet(false);
+            Completable attachedFetch = null;
 
             if (isFirst) {
                 _valueObservable = attachSource(_key);
 
                 // since this is the first fetch of the observable, go grab the first emission
-                emitFault(_key);
+                attachedFetch = Completable.defer(new Callable<CompletableSource>() {
+                    @Override
+                    public CompletableSource call() throws Exception {
+                        return new CompletableSource() {
+                            @Override
+                            public void subscribe(CompletableObserver completableObserver) {
+                                Function<K, Single<V>> faultHandler = _faultHandler;
+
+                                emitFault(_key);
+
+                                if (faultHandler != null) {
+                                    try {
+                                        Single<V> fault = faultHandler.apply(_key);
+
+                                        fault.doOnSuccess(new Consumer<V>() {
+                                            @Override
+                                            public void accept(V v) throws Exception {
+                                                _valueObservable.onNext(v);
+                                            }
+                                        }).toCompletable().subscribe(completableObserver);
+                                    } catch (Exception e) {
+                                        completableObserver.onError(e);
+                                    }
+                                } else {
+                                    completableObserver.onComplete();
+                                }
+                            }
+                        };
+                    }
+                });
             }
 
             // in case you raced into this block but someone else won the coin toss
@@ -82,12 +112,28 @@ public class SubjectMap<K, V>
                 Thread.yield();
             }
 
+            final Completable initialValueFetch = attachedFetch;
             final AtomicReference<Subscription> disposableTarget = new AtomicReference<>();
+            final AtomicReference<Disposable> initialValueFetchDisposable = new AtomicReference<>();
 
             _valueObservable.subscribe(new FlowableSubscriber<V>() {
                 @Override
                 public void onSubscribe(Subscription s)
                 {
+                    if (initialValueFetch != null) {
+                        Disposable subscription = initialValueFetch.subscribe(new Action() {
+                            @Override
+                            public void run() throws Exception {
+                            }
+                        }, new Consumer<Throwable>() {
+                            @Override
+                            public void accept(Throwable throwable) throws Exception {
+                                _valueObservable.onError(throwable);
+                            }
+                        });
+                        initialValueFetchDisposable.set(subscription);
+                    }
+
                     disposableTarget.set(s);
 
                     s.request(Long.MAX_VALUE);
@@ -114,6 +160,12 @@ public class SubjectMap<K, V>
 
                 @Override
                 public void dispose() {
+                    Disposable disposable = initialValueFetchDisposable.get();
+
+                    if (disposable != null && !disposable.isDisposed()) {
+                        disposable.dispose();
+                    }
+
                     disposableTarget.get().cancel();
                     detachSource(_key);
                 }
@@ -241,6 +293,11 @@ public class SubjectMap<K, V>
     private void emitFault(K key)
     {
         _faults.onNext(key);
+    }
+
+    public void setFaultHandler(Function<K, Single<V>> faultHandler)
+    {
+        _faultHandler = faultHandler;
     }
 
     /**
