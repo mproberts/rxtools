@@ -36,11 +36,12 @@ class ConcatFlowableList extends BaseFlowableList
 
             _index = index;
             _alreadyRunning.set(false);
+            _latest = new ArrayList<>();
         }
 
         public int size()
         {
-            return _latest == null ? 0 : _latest.size();
+            return _latest.size();
         }
 
         public void setIndex(int index)
