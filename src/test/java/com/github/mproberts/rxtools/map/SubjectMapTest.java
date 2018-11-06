@@ -9,8 +9,10 @@ import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Action;
 import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
+import io.reactivex.subjects.SingleSubject;
 import io.reactivex.subscribers.DisposableSubscriber;
 import io.reactivex.subscribers.TestSubscriber;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -688,7 +690,7 @@ public class SubjectMapTest
 
         source.onNext("hello", 11);
 
-        source.clear();
+        source.clearAndDetachAll();
 
         subscribe(source.get("hello"), testSubscriber2);
         source.onNext("hello", 22);
@@ -698,5 +700,42 @@ public class SubjectMapTest
 
         // cleanup
         faultSubscription.dispose();
+    }
+
+    @Test
+    public void testClearingCacheDetachesSubscriberWithFaults()
+    {
+        // setup
+        final SingleSubject<Integer> singleSource = SingleSubject.create();
+
+        source.setFaultHandler(new Function<String, Single<Integer>>() {
+            @Override
+            public Single<Integer> apply(String s) throws Exception {
+                return singleSource;
+            }
+        });
+
+        TestSubscriber<Integer> testSubscriber = new TestSubscriber<>();
+        TestSubscriber<Integer> testSubscriber2 = new TestSubscriber<>();
+
+        @SuppressWarnings("unused")
+        Flowable<Integer> helloValue = source.get("hello");
+
+        helloValue = null;
+
+        System.gc();
+
+        subscribe(source.get("hello"), testSubscriber);
+        testSubscriber.assertNoValues();
+
+        source.clearAndDetachAll();
+
+        singleSource.onSuccess(11);
+
+        subscribe(source.get("hello"), testSubscriber2);
+        source.onNext("hello", 22);
+
+        testSubscriber.assertNoValues();
+        testSubscriber2.assertValues(11, 22);
     }
 }

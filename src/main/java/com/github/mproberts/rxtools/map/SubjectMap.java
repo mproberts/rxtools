@@ -7,7 +7,9 @@ import org.reactivestreams.Processor;
 import org.reactivestreams.Subscription;
 
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -460,18 +462,29 @@ public class SubjectMap<K, V>
 
     /**
      * Clear all internal caches for this map.
+     * onComplete() will be called for all sources that are still alive.
      * The map will be empty after this call returns.
      */
-    public void clear()
+    public void clearAndDetachAll()
     {
+        List<Processor<V, V>> lingeringProcessors = new ArrayList<>(_weakSources.size());
         _writeLock.lock();
         try {
             _cache.clear();
+            for (WeakReference<Processor<V, V>> weakProcessors : _weakSources.values()) {
+                Processor<V,V> processor = weakProcessors.get();
+                if (processor != null) {
+                    lingeringProcessors.add(processor);
+                }
+            }
             _weakSources.clear();
             _weakCache.clear();
         }
         finally {
             _writeLock.unlock();
+            for (Processor<V,V> processor : lingeringProcessors) {
+                processor.onComplete();
+            }
         }
     }
 }
