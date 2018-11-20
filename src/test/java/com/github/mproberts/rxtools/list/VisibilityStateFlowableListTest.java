@@ -50,6 +50,29 @@ public class VisibilityStateFlowableListTest
     }
 
     @Test
+    public void testFirstItemIsNotVisible() {
+        VisibleItem<Integer> item1 = new VisibleItem<>(1, false);
+        VisibleItem<Integer> item2 = new VisibleItem<>(2, true);
+
+        SimpleFlowableList<VisibleItem<Integer>> simpleList = new SimpleFlowableList<>();
+        FlowableList<Integer> list = FlowableList.collapseVisibility(simpleList);
+        TestSubscriber testSubscriber = new TestSubscriber();
+
+        simpleList.add(item1);
+        simpleList.add(item2);
+
+        list.updates().subscribe(testSubscriber);
+
+        List<Update> onNextEvents = testSubscriber.values();
+        testSubscriber.assertValueCount(1);
+
+        Update update = onNextEvents.get(0);
+
+        assertEquals(Arrays.asList(Change.reloaded()), update.changes);
+        assertEquals(Arrays.asList(2), update.list);
+    }
+
+    @Test
     public void testBasicVisibility()
     {
         VisibleItem<Integer> item1 = new VisibleItem<>(1, true);
@@ -268,7 +291,7 @@ public class VisibilityStateFlowableListTest
         assertEquals(Arrays.asList(Change.reloaded()), update1.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4), update1.list);
 
-        assertEquals(Arrays.asList(Change.moved(0, 1)), update2.changes);
+        assertEquals(Arrays.asList(Change.moved(1, 0)), update2.changes);
         assertEquals(Arrays.asList(2, 1, 3, 4), update2.list);
 
         assertEquals(Arrays.asList(Change.moved(2, 0)), update3.changes);

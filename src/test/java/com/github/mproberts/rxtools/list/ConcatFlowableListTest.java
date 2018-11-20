@@ -3,6 +3,7 @@ package com.github.mproberts.rxtools.list;
 import io.reactivex.subscribers.TestSubscriber;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -238,13 +239,12 @@ public class ConcatFlowableListTest
         assertEquals(Arrays.asList(Change.reloaded()), reload.changes);
         assertEquals(Arrays.asList(1, 2, 3, 4, 5), reload.list);
 
-        assertEquals(Arrays.asList(Change.inserted(2)), insertd.changes);
+        assertEquals(Arrays.asList(Change.reloaded()), insertd.changes);
         assertEquals(Arrays.asList(1, 2, 6, 3, 4, 5), insertd.list);
 
         assertEquals(
                 Arrays.asList(
-                        Change.removed(3),
-                        Change.removed(4)),
+                        Change.reloaded()),
                 removeb.changes);
         assertEquals(Arrays.asList(1, 2, 6, 5), removeb.list);
     }
@@ -295,19 +295,17 @@ public class ConcatFlowableListTest
         assertEquals(Arrays.asList(1, 2, 5, 6, 3, 4), move.list);
         assertEquals(
                 Arrays.asList(
-                        Change.moved(2, 4),
-                        Change.moved(3, 5)),
+                        Change.reloaded()),
                 move.changes);
 
-        assertEquals(Arrays.asList(1, 2, 5, 6, 7, 3, 4), insert7.list);
+        assertEquals(Arrays.asList(1, 2, 5, 6, 7, 3, 4), new ArrayList<Integer>(insert7.list));
         assertEquals(Arrays.asList(Change.inserted(4)), insert7.changes);
 
         // move it back to the original order
         assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6, 7), move2.list);
         assertEquals(
                 Arrays.asList(
-                        Change.moved(5, 2),
-                        Change.moved(6, 3)),
+                        Change.reloaded()),
                 move2.changes);
     }
 
