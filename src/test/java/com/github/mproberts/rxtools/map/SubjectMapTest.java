@@ -699,4 +699,30 @@ public class SubjectMapTest
         // cleanup
         faultSubscription.dispose();
     }
+
+    @Test
+    public void testRunIfBoundNotBound() {
+        Flowable<Integer> notBound = source.get("key");
+
+        source.runIfBound("key", new Runnable() {
+            @Override
+            public void run() {
+                fail("Runnable should not be run");
+            }
+        });
+
+        assertNotNull(notBound);
+    }
+
+    @Test
+    public void testRunIfBoundIsbound() {
+        source.get("key").test();
+
+        source.runIfBound("key", new Runnable() {
+            @Override
+            public void run() {
+                source.onNext("key", 1234);
+            }
+        });
+    }
 }
