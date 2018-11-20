@@ -316,7 +316,8 @@ public class SubjectMap<K, V>
     /**
      * Runs the specified Runnable if an observable is associated with the specified key.
      */
-    public void runIfBound(K key, final Runnable runnable) {
+    public void runIfBound(K key, final Runnable runnable)
+    {
         _readLock.lock();
 
         boolean isBound = false;
