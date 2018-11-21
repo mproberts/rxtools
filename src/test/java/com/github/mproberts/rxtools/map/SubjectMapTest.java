@@ -757,7 +757,7 @@ public class SubjectMapTest
     @Test
     public void testRunIfBoundIsbound()
     {
-        source.get("key").test();
+        TestSubscriber<Integer> sub = source.get("key").test();
 
         source.runIfBound("key", new Runnable() {
             @Override
@@ -765,5 +765,7 @@ public class SubjectMapTest
                 source.onNext("key", 1234);
             }
         });
+
+        sub.assertValue(1234);
     }
 }
