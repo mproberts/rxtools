@@ -767,5 +767,15 @@ public class SubjectMapTest
         });
 
         sub.assertValue(1234);
+        sub.dispose();
+
+        System.gc();
+
+        source.runIfBound("key", new Runnable() {
+            @Override
+            public void run() {
+                fail("Runnable should not be run");
+            }
+        });
     }
 }
