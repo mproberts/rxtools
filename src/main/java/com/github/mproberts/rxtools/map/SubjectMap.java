@@ -314,6 +314,28 @@ public class SubjectMap<K, V>
     }
 
     /**
+     * Runs the specified Runnable if an observable is associated with the specified key.
+     */
+    public void runIfBound(K key, final Runnable runnable)
+    {
+        _readLock.lock();
+
+        boolean isBound = false;
+        try {
+            WeakReference<Processor<V, V>> weakSource = _weakSources.get(key);
+            if (weakSource != null && weakSource.get() != null) {
+                isBound = true;
+            }
+        } finally {
+            _readLock.unlock();
+        }
+
+        if (isBound) {
+            runnable.run();
+        }
+    }
+
+    /**
      * Emits the specified value from the observable associated with the specified key
      * if there is an associated observable. If no observable has subscribed to the key,
      * this operation is a noop. If no value is not emitted it will be faulted in later

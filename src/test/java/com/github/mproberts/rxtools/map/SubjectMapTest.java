@@ -738,4 +738,44 @@ public class SubjectMapTest
         testSubscriber.assertNoValues();
         testSubscriber2.assertValues(11, 22);
     }
+
+    @Test
+    public void testRunIfBoundNotBound()
+    {
+        Flowable<Integer> notBound = source.get("key");
+
+        source.runIfBound("key", new Runnable() {
+            @Override
+            public void run() {
+                fail("Runnable should not be run");
+            }
+        });
+
+        assertNotNull(notBound);
+    }
+
+    @Test
+    public void testRunIfBoundIsbound()
+    {
+        TestSubscriber<Integer> sub = source.get("key").test();
+
+        source.runIfBound("key", new Runnable() {
+            @Override
+            public void run() {
+                source.onNext("key", 1234);
+            }
+        });
+
+        sub.assertValue(1234);
+        sub.dispose();
+
+        System.gc();
+
+        source.runIfBound("key", new Runnable() {
+            @Override
+            public void run() {
+                fail("Runnable should not be run");
+            }
+        });
+    }
 }

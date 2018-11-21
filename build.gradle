@@ -14,7 +14,7 @@ dependencies {
 allprojects {
     sourceCompatibility = 1.7
     targetCompatibility = 1.7
-    version = '0.5.2'
+    version = '0.5.3'
 }
 
 jacocoTestReport {
