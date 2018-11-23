@@ -314,9 +314,9 @@ public class SubjectMap<K, V>
     }
 
     /**
-     * Runs the specified Runnable if an observable is associated with the specified key.
+     * Re-emits a fault for the specified key if there is someone bound
      */
-    public void runIfBound(K key, final Runnable runnable)
+    public void faultIfBound(K key)
     {
         _readLock.lock();
 
@@ -331,7 +331,64 @@ public class SubjectMap<K, V>
         }
 
         if (isBound) {
-            runnable.run();
+            processNewFaultForKey(key);
+        }
+    }
+
+    private void processNewFaultForKey(final K key)
+    {
+        Completable.defer(new Callable<CompletableSource>() {
+            @Override
+            public CompletableSource call() throws Exception {
+                return new CompletableSource() {
+                    @Override
+                    public void subscribe(CompletableObserver completableObserver) {
+                        Function<K, Single<V>> faultHandler = _faultHandler;
+
+                        emitFault(key);
+
+                        if (faultHandler != null) {
+                            try {
+                                Single<V> fault = faultHandler.apply(key);
+
+                                fault.doOnSuccess(new Consumer<V>() {
+                                    @Override
+                                    public void accept(V v) throws Exception {
+                                        WeakReference<Processor<V, V>> weakSource = _weakSources.get(key);
+                                        Processor<V, V> processor;
+                                        if (weakSource != null && (processor = weakSource.get()) != null ) {
+                                            processor.onNext(v);
+                                        }
+                                    }
+                                }).toCompletable().subscribe(completableObserver);
+                            } catch (Exception e) {
+                                completableObserver.onError(e);
+                            }
+                        } else {
+                            completableObserver.onComplete();
+                        }
+                    }
+                };
+            }
+        }).subscribe();
+    }
+
+    /**
+     * Re-emits a fault for all bound keys 
+     */
+    public void faultAllBound()
+    {
+        List<K> keys = new ArrayList<>();
+        _readLock.lock();
+
+        try {
+            keys.addAll(_weakSources.keySet());
+        } finally {
+            _readLock.unlock();
+        }
+
+        for (final K key : keys) {
+            processNewFaultForKey(key);
         }
     }
 

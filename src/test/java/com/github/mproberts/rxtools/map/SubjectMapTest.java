@@ -740,42 +740,91 @@ public class SubjectMapTest
     }
 
     @Test
-    public void testRunIfBoundNotBound()
+    public void testFaultIfBoundWhenNotBound()
     {
-        Flowable<Integer> notBound = source.get("key");
-
-        source.runIfBound("key", new Runnable() {
+        final boolean[] didFault = {false};
+        source.setFaultHandler(new Function<String, Single<Integer>>() {
             @Override
-            public void run() {
-                fail("Runnable should not be run");
+            public Single<Integer> apply(String s) {
+                didFault[0] = true;
+                return Single.just(1);
             }
         });
 
-        assertNotNull(notBound);
+        Flowable<Integer> notBound = source.get("key");
+
+        source.faultIfBound("key");
+
+        assertFalse(didFault[0]);
     }
 
     @Test
-    public void testRunIfBoundIsbound()
+    public void testFaultIfBoundWhenBound()
     {
+        final SingleSubject<Integer> singleSource = SingleSubject.create();
+
+        final boolean[] didFault = {false, false, false};
+        source.setFaultHandler(new Function<String, Single<Integer>>() {
+            int faultNum = 0;
+            @Override
+            public Single<Integer> apply(String s) {
+                didFault[faultNum] = true;
+                faultNum += 1;
+                return singleSource;
+            }
+        });
+
         TestSubscriber<Integer> sub = source.get("key").test();
 
-        source.runIfBound("key", new Runnable() {
-            @Override
-            public void run() {
-                source.onNext("key", 1234);
-            }
-        });
-
+        singleSource.onSuccess(1234);
         sub.assertValue(1234);
-        sub.dispose();
 
-        System.gc();
+        source.faultIfBound("key");
+        singleSource.onSuccess(123);
 
-        source.runIfBound("key", new Runnable() {
+        source.clearAndDetachAll();
+
+        // Nothing should be faulted since it should no longer be bound
+        source.faultAllBound();
+        singleSource.onSuccess(124);
+
+        assertTrue(didFault[0]);
+        assertTrue(didFault[1]);
+        assertFalse(didFault[2]);
+    }
+
+    @Test
+    public void testFaultAllBoundWhenBound()
+    {
+        final SingleSubject<Integer> singleSource = SingleSubject.create();
+
+        final boolean[] didFault = {false, false, false};
+        source.setFaultHandler(new Function<String, Single<Integer>>() {
+            int faultNum = 0;
             @Override
-            public void run() {
-                fail("Runnable should not be run");
+            public Single<Integer> apply(String s) {
+                didFault[faultNum] = true;
+                faultNum += 1;
+                return singleSource;
             }
         });
+
+        TestSubscriber<Integer> sub = source.get("key").test();
+
+        singleSource.onSuccess(1234);
+        sub.assertValue(1234);
+
+        source.faultAllBound();
+        singleSource.onSuccess(123);
+
+        source.clearAndDetachAll();
+
+        // Nothing should be faulted since it should no longer be bound
+        source.faultAllBound();
+        singleSource.onSuccess(124);
+
+        assertTrue(didFault[0]);
+        assertTrue(didFault[1]);
+        assertFalse(didFault[2]);
     }
 }
