@@ -9,6 +9,7 @@ import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Action;
 import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
+import io.reactivex.observers.TestObserver;
 import io.reactivex.subjects.SingleSubject;
 import io.reactivex.subscribers.DisposableSubscriber;
 import io.reactivex.subscribers.TestSubscriber;
@@ -779,7 +780,7 @@ public class SubjectMapTest
         singleSource.onSuccess(1234);
         sub.assertValue(1234);
 
-        source.faultIfBound("key");
+        source.faultIfBound("key").test().awaitCount(1);
         singleSource.onSuccess(123);
 
         source.clearAndDetachAll();
@@ -814,7 +815,7 @@ public class SubjectMapTest
         singleSource.onSuccess(1234);
         sub.assertValue(1234);
 
-        source.faultAllBound();
+        source.faultAllBound().test().awaitCount(1);
         singleSource.onSuccess(123);
 
         source.clearAndDetachAll();
@@ -826,5 +827,39 @@ public class SubjectMapTest
         assertTrue(didFault[0]);
         assertTrue(didFault[1]);
         assertFalse(didFault[2]);
+    }
+
+    @Test
+    public void faultAllBoundWithNoFaultHandlerDoesNotThrow()
+    {
+        TestSubscriber<Integer> sub = source.get("key").test();
+        TestObserver<Void> observer = source.faultAllBound().test().awaitCount(1);
+        sub.assertNoValues();
+        sub.assertNoErrors();
+        observer.assertNoErrors();
+    }
+
+    @Test
+    public void testErrorHandlingInFaultMethods()
+    {
+        final Exception faultException = new Exception("Something went wrong the second time");
+        source.setFaultHandler(new Function<String, Single<Integer>>() {
+            boolean shouldThrow = false;
+            @Override
+            public Single<Integer> apply(String s) throws Exception {
+                if (shouldThrow) {
+                    throw faultException;
+                }
+                else {
+                    shouldThrow = true;
+                }
+                return Single.just(1);
+            }
+        });
+
+        TestSubscriber<Integer> sub = source.get("key").test();
+
+        TestObserver<Void> subscriber = source.faultAllBound().test();
+        subscriber.assertError(faultException);
     }
 }

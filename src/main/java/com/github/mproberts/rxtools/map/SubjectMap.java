@@ -316,7 +316,7 @@ public class SubjectMap<K, V>
     /**
      * Re-emits a fault for the specified key if there is someone bound
      */
-    public void faultIfBound(K key)
+    public Completable faultIfBound(K key)
     {
         _readLock.lock();
 
@@ -331,13 +331,14 @@ public class SubjectMap<K, V>
         }
 
         if (isBound) {
-            processNewFaultForKey(key);
+            return processNewFaultForKey(key);
         }
+        return Completable.complete();
     }
 
-    private void processNewFaultForKey(final K key)
+    private Completable processNewFaultForKey(final K key)
     {
-        Completable.defer(new Callable<CompletableSource>() {
+        return Completable.defer(new Callable<CompletableSource>() {
             @Override
             public CompletableSource call() throws Exception {
                 return new CompletableSource() {
@@ -370,15 +371,15 @@ public class SubjectMap<K, V>
                     }
                 };
             }
-        }).subscribe();
+        });
     }
 
     /**
-     * Re-emits a fault for all bound keys 
+     * Re-emits a fault for all bound keys
      */
-    public void faultAllBound()
+    public Completable faultAllBound()
     {
-        List<K> keys = new ArrayList<>();
+        List<K> keys = new ArrayList<>(_weakSources.size());
         _readLock.lock();
 
         try {
@@ -387,9 +388,11 @@ public class SubjectMap<K, V>
             _readLock.unlock();
         }
 
+        List<Completable> allFaultCompletables = new ArrayList<>();
         for (final K key : keys) {
-            processNewFaultForKey(key);
+            allFaultCompletables.add(processNewFaultForKey(key));
         }
+        return Completable.concat(allFaultCompletables);
     }
 
     /**
