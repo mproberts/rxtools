@@ -743,20 +743,58 @@ public class SubjectMapTest
     @Test
     public void testFaultIfBoundWhenNotBound()
     {
-        final boolean[] didFault = {false};
         source.setFaultHandler(new Function<String, Single<Integer>>() {
             @Override
             public Single<Integer> apply(String s) {
-                didFault[0] = true;
-                return Single.just(1);
+                fail("Nothing should be bound so no fault should occur.");
+                return Single.error(new Exception());
             }
         });
 
         Flowable<Integer> notBound = source.get("key");
 
-        source.faultIfBound("key");
+        source.faultIfBound("key").test();
+    }
 
-        assertFalse(didFault[0]);
+    @Test
+    public void testFaultIfBoundWhenNotBound2()
+    {
+        source.setFaultHandler(new Function<String, Single<Integer>>() {
+            @Override
+            public Single<Integer> apply(String s) {
+                fail("Nothing should be bound so no fault should occur.");
+                return Single.error(new Exception());
+            }
+        });
+
+        Flowable<Integer> notBound = source.get("key");
+
+        source.faultAllBound();
+    }
+    @Test
+    public void testFaultIfBoundOnlyFaultsBound()
+    {
+        source.setFaultHandler(new Function<String, Single<Integer>>() {
+            boolean didFaultOnce = false;
+            @Override
+            public Single<Integer> apply(String s) {
+                if (didFaultOnce) {
+                    // We only want "faultKey to fault a second time"
+                    assertEquals("faultKey", s);
+                }
+                else {
+                    didFaultOnce = true;
+                }
+                return Single.just(1);
+            }
+        });
+
+        TestSubscriber<Integer> boundNoFault = source.get("key").test();
+        TestSubscriber<Integer> boundFault = source.get("faultKey").test();
+
+        source.faultIfBound("faultKey").test();
+        boundNoFault.assertValueCount(1);
+        boundFault.assertValueCount(2);
     }
 
     @Test
@@ -827,6 +865,15 @@ public class SubjectMapTest
         assertTrue(didFault[0]);
         assertTrue(didFault[1]);
         assertFalse(didFault[2]);
+    }
+    @Test
+    public void faultIfBoundWithNoFaultHandlerDoesNotThrow()
+    {
+        TestSubscriber<Integer> sub = source.get("key").test();
+        TestObserver<Void> observer = source.faultIfBound("key").test().awaitCount(1);
+        sub.assertNoValues();
+        sub.assertNoErrors();
+        observer.assertNoErrors();
     }
 
     @Test

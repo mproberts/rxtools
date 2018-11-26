@@ -316,27 +316,7 @@ public class SubjectMap<K, V>
     /**
      * Re-emits a fault for the specified key if there is someone bound
      */
-    public Completable faultIfBound(K key)
-    {
-        _readLock.lock();
-
-        boolean isBound = false;
-        try {
-            WeakReference<Processor<V, V>> weakSource = _weakSources.get(key);
-            if (weakSource != null && weakSource.get() != null) {
-                isBound = true;
-            }
-        } finally {
-            _readLock.unlock();
-        }
-
-        if (isBound) {
-            return processNewFaultForKey(key);
-        }
-        return Completable.complete();
-    }
-
-    private Completable processNewFaultForKey(final K key)
+    public Completable faultIfBound(final K key)
     {
         return Completable.defer(new Callable<CompletableSource>() {
             @Override
@@ -344,29 +324,52 @@ public class SubjectMap<K, V>
                 return new CompletableSource() {
                     @Override
                     public void subscribe(CompletableObserver completableObserver) {
+                        _readLock.lock();
+
+                        boolean isBound = false;
+                        try {
+                            WeakReference<Processor<V, V>> weakSource = _weakSources.get(key);
+                            if (weakSource != null && weakSource.get() != null) {
+                                isBound = true;
+                            }
+                        }
+                        finally {
+                            _readLock.unlock();
+                        }
+
+                        // Only process the fault if the key is bound
+                        if (!isBound) {
+                            Completable.complete().subscribe(completableObserver);
+                            return;
+                        }
+
                         Function<K, Single<V>> faultHandler = _faultHandler;
 
                         emitFault(key);
 
-                        if (faultHandler != null) {
-                            try {
-                                Single<V> fault = faultHandler.apply(key);
+                        if (faultHandler == null) {
+                            Completable.complete().subscribe(completableObserver);
+                            return;
+                        }
 
-                                fault.doOnSuccess(new Consumer<V>() {
-                                    @Override
-                                    public void accept(V v) throws Exception {
-                                        WeakReference<Processor<V, V>> weakSource = _weakSources.get(key);
-                                        Processor<V, V> processor;
-                                        if (weakSource != null && (processor = weakSource.get()) != null ) {
-                                            processor.onNext(v);
-                                        }
+                        try {
+                            Single<V> fault = faultHandler.apply(key);
+
+                            fault.doOnSuccess(new Consumer<V>() {
+                                @Override
+                                public void accept(V v) throws Exception {
+                                    _readLock.lock();
+                                    WeakReference<Processor<V, V>> weakSource = _weakSources.get(key);
+                                    _readLock.unlock();
+                                    Processor<V, V> processor;
+                                    if (weakSource != null && (processor = weakSource.get()) != null ) {
+                                        processor.onNext(v);
                                     }
-                                }).toCompletable().subscribe(completableObserver);
-                            } catch (Exception e) {
-                                completableObserver.onError(e);
-                            }
-                        } else {
-                            completableObserver.onComplete();
+                                }
+                            }).toCompletable().subscribe(completableObserver);
+                        }
+                        catch (Exception e) {
+                            Completable.error(e).subscribe(completableObserver);
                         }
                     }
                 };
@@ -379,20 +382,73 @@ public class SubjectMap<K, V>
      */
     public Completable faultAllBound()
     {
-        List<K> keys = new ArrayList<>(_weakSources.size());
-        _readLock.lock();
+        return Completable.defer(new Callable<CompletableSource>() {
+            @Override
+            public CompletableSource call() throws Exception {
+                return new CompletableSource() {
+                    @Override
+                    public void subscribe(CompletableObserver completableObserver) {
+                        List<K> retainedKeys = new ArrayList<>(_weakSources.size());
+                        _readLock.lock();
 
-        try {
-            keys.addAll(_weakSources.keySet());
-        } finally {
-            _readLock.unlock();
-        }
+                        try {
+                            for (K key : _weakSources.keySet()) {
+                                WeakReference<Processor<V, V>> weakSource = _weakSources.get(key);
+                                if (weakSource != null &&  weakSource.get() != null) {
+                                    retainedKeys.add(key);
+                                }
+                            }
+                        }
+                        finally {
+                            _readLock.unlock();
+                        }
 
-        List<Completable> allFaultCompletables = new ArrayList<>();
-        for (final K key : keys) {
-            allFaultCompletables.add(processNewFaultForKey(key));
-        }
-        return Completable.concat(allFaultCompletables);
+                        // Only process the fault if there are any keys bound
+                        if (retainedKeys.isEmpty()) {
+                            Completable.complete().subscribe(completableObserver);
+                            return;
+                        }
+
+                        Function<K, Single<V>> faultHandler = _faultHandler;
+
+                        // Emit all faults for old fault handlers
+                        for (K key : retainedKeys) {
+                            emitFault(key);
+                        }
+
+                        // Only process faults if there is a handler explicitly set
+                        if (faultHandler == null) {
+                            Completable.complete().subscribe(completableObserver);
+                            return;
+                        }
+
+                        try {
+                            List<Completable> faultCompletables = new ArrayList<>(retainedKeys.size());
+                            for (final K key : retainedKeys) {
+                                Single<V> fault = faultHandler.apply(key);
+
+                                faultCompletables.add(fault.doOnSuccess(new Consumer<V>() {
+                                    @Override
+                                    public void accept(V v) throws Exception {
+                                        _readLock.lock();
+                                        WeakReference<Processor<V, V>> weakSource = _weakSources.get(key);
+                                        _readLock.unlock();
+                                        Processor<V, V> processor;
+                                        if (weakSource != null && (processor = weakSource.get()) != null) {
+                                            processor.onNext(v);
+                                        }
+                                    }
+                                }).toCompletable());
+                            }
+                            Completable.concat(faultCompletables).subscribe(completableObserver);
+                        }
+                        catch (Exception e) {
+                            Completable.error(e).subscribe(completableObserver);
+                        }
+                    }
+                };
+            }
+        });
     }
 
     /**
