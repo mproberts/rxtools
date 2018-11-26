@@ -440,7 +440,7 @@ public class SubjectMap<K, V>
                                     }
                                 }).toCompletable());
                             }
-                            Completable.concat(faultCompletables).subscribe(completableObserver);
+                            Completable.merge(faultCompletables).subscribe(completableObserver);
                         }
                         catch (Exception e) {
                             Completable.error(e).subscribe(completableObserver);
