@@ -754,8 +754,8 @@ public class SubjectMapTest
         // No test() call so there will be no listeners bound
         source.get("key");
 
-        source.faultIfBound("key").test();
-        source.faultAllBound().test();
+        source.faultIfBound("key").test().assertComplete();
+        source.faultAllBound().test().assertComplete();
     }
 
     @Test
@@ -779,7 +779,7 @@ public class SubjectMapTest
         TestSubscriber<Integer> boundNoFault = source.get("key").test();
         TestSubscriber<Integer> boundFault = source.get("faultKey").test();
 
-        source.faultIfBound("faultKey").test();
+        source.faultIfBound("faultKey").test().assertComplete();
         boundNoFault.assertValueCount(1);
         boundFault.assertValueCount(2);
     }

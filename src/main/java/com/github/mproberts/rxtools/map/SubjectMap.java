@@ -358,7 +358,7 @@ public class SubjectMap<K, V>
                         try {
                             for (K key : _weakSources.keySet()) {
                                 WeakReference<Processor<V, V>> weakSource = _weakSources.get(key);
-                                if (weakSource != null &&  weakSource.get() != null) {
+                                if (weakSource != null && weakSource.get() != null) {
                                     retainedKeys.add(key);
                                 }
                             }
