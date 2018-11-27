@@ -757,7 +757,7 @@ public class SubjectMapTest
     }
 
     @Test
-    public void testFaultIfBoundWhenNotBound2()
+    public void testFaultAllBoundWhenNotBound()
     {
         source.setFaultHandler(new Function<String, Single<Integer>>() {
             @Override
@@ -769,7 +769,7 @@ public class SubjectMapTest
 
         Flowable<Integer> notBound = source.get("key");
 
-        source.faultAllBound();
+        source.faultAllBound().test();
     }
     @Test
     public void testFaultIfBoundOnlyFaultsBound()
@@ -907,6 +907,7 @@ public class SubjectMapTest
         TestSubscriber<Integer> sub = source.get("key").test();
 
         TestObserver<Void> subscriber = source.faultAllBound().test();
+        TestObserver<Void> subscriber2 = source.faultIfBound("key").test();
         subscriber.assertError(faultException);
     }
 }
