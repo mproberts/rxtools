@@ -9,6 +9,7 @@ import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Action;
 import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
+import io.reactivex.observers.TestObserver;
 import io.reactivex.subjects.SingleSubject;
 import io.reactivex.subscribers.DisposableSubscriber;
 import io.reactivex.subscribers.TestSubscriber;
@@ -740,42 +741,166 @@ public class SubjectMapTest
     }
 
     @Test
-    public void testRunIfBoundNotBound()
+    public void testFaultIfBoundWhenNotBound()
     {
-        Flowable<Integer> notBound = source.get("key");
-
-        source.runIfBound("key", new Runnable() {
+        source.setFaultHandler(new Function<String, Single<Integer>>() {
             @Override
-            public void run() {
-                fail("Runnable should not be run");
+            public Single<Integer> apply(String s) {
+                fail("Nothing should be bound so no fault should occur.");
+                return Single.error(new Exception());
             }
         });
 
-        assertNotNull(notBound);
+        // No test() call so there will be no listeners bound
+        source.get("key");
+
+        source.faultIfBound("key").test().assertComplete();
+        source.faultAllBound().test().assertComplete();
     }
 
     @Test
-    public void testRunIfBoundIsbound()
+    public void testFaultIfBoundOnlyFaultsBound()
     {
-        TestSubscriber<Integer> sub = source.get("key").test();
-
-        source.runIfBound("key", new Runnable() {
+        source.setFaultHandler(new Function<String, Single<Integer>>() {
+            boolean didFaultOnce = false;
             @Override
-            public void run() {
-                source.onNext("key", 1234);
+            public Single<Integer> apply(String s) {
+                if (didFaultOnce) {
+                    // We only want "faultKey to fault a second time"
+                    assertEquals("faultKey", s);
+                }
+                else {
+                    didFaultOnce = true;
+                }
+                return Single.just(1);
             }
         });
 
-        sub.assertValue(1234);
-        sub.dispose();
+        TestSubscriber<Integer> boundNoFault = source.get("key").test();
+        TestSubscriber<Integer> boundFault = source.get("faultKey").test();
 
-        System.gc();
+        source.faultIfBound("faultKey").test().assertComplete();
+        boundNoFault.assertValueCount(1);
+        boundFault.assertValueCount(2);
+    }
 
-        source.runIfBound("key", new Runnable() {
+    @Test
+    public void testFaultIfBoundWhenBound()
+    {
+        final SingleSubject<Integer> singleSource = SingleSubject.create();
+
+        final boolean[] didFault = {false, false, false};
+        source.setFaultHandler(new Function<String, Single<Integer>>() {
+            int faultNum = 0;
             @Override
-            public void run() {
-                fail("Runnable should not be run");
+            public Single<Integer> apply(String s) {
+                didFault[faultNum] = true;
+                faultNum += 1;
+                return singleSource;
             }
         });
+
+        TestSubscriber<Integer> keySubscription = source.get("key").test();
+
+        singleSource.onSuccess(1234);
+        keySubscription.assertValue(1234);
+
+        source.faultIfBound("key").test().awaitCount(1);
+        singleSource.onSuccess(123);
+
+        source.clearAndDetachAll();
+
+        // Nothing should be faulted since it should no longer be bound
+        source.faultAllBound();
+        singleSource.onSuccess(124);
+
+        assertTrue(didFault[0]);
+        assertTrue(didFault[1]);
+        assertFalse(didFault[2]);
+    }
+
+    @Test
+    public void testFaultAllBoundWhenBound()
+    {
+        final SingleSubject<Integer> singleSource = SingleSubject.create();
+
+        final boolean[] didFault = {false, false, false};
+        source.setFaultHandler(new Function<String, Single<Integer>>() {
+            int faultNum = 0;
+            @Override
+            public Single<Integer> apply(String s) {
+                didFault[faultNum] = true;
+                faultNum += 1;
+                return singleSource;
+            }
+        });
+
+        TestSubscriber<Integer> keySubscription = source.get("key").test();
+
+        singleSource.onSuccess(1234);
+        keySubscription.assertValue(1234);
+
+        source.faultAllBound().test().awaitCount(1);
+        singleSource.onSuccess(123);
+
+        source.clearAndDetachAll();
+
+        // Nothing should be faulted since it should no longer be bound
+        source.faultAllBound();
+        singleSource.onSuccess(124);
+
+        assertTrue(didFault[0]);
+        assertTrue(didFault[1]);
+        assertFalse(didFault[2]);
+    }
+    @Test
+    public void faultIfBoundWithNoFaultHandlerDoesNotThrow()
+    {
+        TestSubscriber<Integer> keySubscription = source.get("key").test();
+        TestObserver<Void> observer = source.faultIfBound("key").test().awaitCount(1);
+        keySubscription.assertNoValues();
+        keySubscription.assertNoErrors();
+        observer.assertNoErrors();
+    }
+
+    @Test
+    public void faultAllBoundWithNoFaultHandlerDoesNotThrow()
+    {
+        TestSubscriber<Integer> keySubscriber = source.get("key").test();
+        TestObserver<Void> observer = source.faultAllBound().test().awaitCount(1);
+        keySubscriber.assertNoValues();
+        keySubscriber.assertNoErrors();
+        observer.assertNoErrors();
+    }
+
+    @Test
+    public void testErrorHandlingInFaultMethods()
+    {
+        final Exception faultException = new Exception("Something went wrong the second time");
+        source.setFaultHandler(new Function<String, Single<Integer>>() {
+            boolean shouldThrow = false;
+            @Override
+            public Single<Integer> apply(String s) throws Exception {
+                if (shouldThrow) {
+                    throw faultException;
+                }
+                else {
+                    shouldThrow = true;
+                }
+                return Single.just(1);
+            }
+        });
+
+        TestSubscriber<Integer> keySubscriber = source.get("key").test();
+
+        TestObserver<Void> allBoundObserver = source.faultAllBound().test();
+        TestObserver<Void> keyBoundObserver = source.faultIfBound("key").test();
+
+        // Initial subscription should fault a value correctly
+        keySubscriber.assertNoErrors();
+
+        // Subsequent faults should throw an error in the fault handler
+        allBoundObserver.assertError(faultException);
+        keyBoundObserver.assertError(faultException);
     }
 }

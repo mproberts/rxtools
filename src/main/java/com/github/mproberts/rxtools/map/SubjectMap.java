@@ -1,7 +1,6 @@
 package com.github.mproberts.rxtools.map;
 
 import io.reactivex.*;
-import io.reactivex.functions.BiConsumer;
 import io.reactivex.functions.Function;
 import org.reactivestreams.Processor;
 import org.reactivestreams.Subscription;
@@ -314,24 +313,115 @@ public class SubjectMap<K, V>
     }
 
     /**
-     * Runs the specified Runnable if an observable is associated with the specified key.
+     * Re-emits a fault for the specified key if there is someone bound
      */
-    public void runIfBound(K key, final Runnable runnable)
+    public Completable faultIfBound(final K key)
     {
-        _readLock.lock();
-
-        boolean isBound = false;
-        try {
-            WeakReference<Processor<V, V>> weakSource = _weakSources.get(key);
-            if (weakSource != null && weakSource.get() != null) {
-                isBound = true;
+        return Completable.defer(new Callable<CompletableSource>() {
+            @Override
+            public CompletableSource call() throws Exception {
+                return new CompletableSource() {
+                    @Override
+                    public void subscribe(CompletableObserver completableObserver) {
+                        _readLock.lock();
+                        List<K> retainedKeys = new ArrayList<>(1);
+                        try {
+                            WeakReference<Processor<V, V>> weakSource = _weakSources.get(key);
+                            if (weakSource != null && weakSource.get() != null) {
+                                retainedKeys.add(key);
+                            }
+                        }
+                        finally {
+                            _readLock.unlock();
+                        }
+                        processFaultForRetainedKeys(retainedKeys, completableObserver);
+                    }
+                };
             }
-        } finally {
-            _readLock.unlock();
+        });
+    }
+
+    /**
+     * Re-emits a fault for all bound keys
+     */
+    public Completable faultAllBound()
+    {
+        return Completable.defer(new Callable<CompletableSource>() {
+            @Override
+            public CompletableSource call() throws Exception {
+                return new CompletableSource() {
+                    @Override
+                    public void subscribe(CompletableObserver completableObserver) {
+                        List<K> retainedKeys = new ArrayList<>(_weakSources.size());
+                        _readLock.lock();
+
+                        try {
+                            for (K key : _weakSources.keySet()) {
+                                WeakReference<Processor<V, V>> weakSource = _weakSources.get(key);
+                                if (weakSource != null && weakSource.get() != null) {
+                                    retainedKeys.add(key);
+                                }
+                            }
+                        }
+                        finally {
+                            _readLock.unlock();
+                        }
+                        processFaultForRetainedKeys(retainedKeys, completableObserver);
+                    }
+                };
+            }
+        });
+    }
+
+    /**
+     * For all keys passed in, emit faults and fetch faulted value from a fault handler (if one is set)
+     * and emit the new value for all processors that are still listening.
+     *
+     * @param retainedKeys keys that should be faulted if a faultHandler is set
+     * @param completableObserver observer on which faults should be subscribed with
+     */
+    private void processFaultForRetainedKeys(List<K> retainedKeys, CompletableObserver completableObserver) {
+        // Only process the fault if there are any keys bound
+        if (retainedKeys.isEmpty()) {
+            Completable.complete().subscribe(completableObserver);
+            return;
         }
 
-        if (isBound) {
-            runnable.run();
+        Function<K, Single<V>> faultHandler = _faultHandler;
+
+        // Emit all faults for old fault handlers
+        for (K key : retainedKeys) {
+            emitFault(key);
+        }
+
+        // Only process faults if there is a handler explicitly set
+        if (faultHandler == null) {
+            Completable.complete().subscribe(completableObserver);
+            return;
+        }
+
+        try {
+            List<Completable> faultCompletables = new ArrayList<>(retainedKeys.size());
+            for (final K key : retainedKeys) {
+                Single<V> fault = faultHandler.apply(key);
+
+                faultCompletables.add(fault.doOnSuccess(new Consumer<V>() {
+                    @Override
+                    public void accept(V v) throws Exception {
+                        _readLock.lock();
+                        WeakReference<Processor<V, V>> weakSource = _weakSources.get(key);
+                        _readLock.unlock();
+                        Processor<V, V> processor;
+                        if (weakSource != null && (processor = weakSource.get()) != null) {
+                            processor.onNext(v);
+                        }
+                    }
+                }).toCompletable());
+            }
+            Completable.merge(faultCompletables).subscribe(completableObserver);
+        }
+        catch (Exception e) {
+            Completable.error(e).subscribe(completableObserver);
         }
     }
 
