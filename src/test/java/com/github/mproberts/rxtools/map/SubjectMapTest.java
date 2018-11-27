@@ -751,26 +751,13 @@ public class SubjectMapTest
             }
         });
 
-        Flowable<Integer> notBound = source.get("key");
+        // No test() call so there will be no listeners bound
+        source.get("key");
 
         source.faultIfBound("key").test();
-    }
-
-    @Test
-    public void testFaultAllBoundWhenNotBound()
-    {
-        source.setFaultHandler(new Function<String, Single<Integer>>() {
-            @Override
-            public Single<Integer> apply(String s) {
-                fail("Nothing should be bound so no fault should occur.");
-                return Single.error(new Exception());
-            }
-        });
-
-        Flowable<Integer> notBound = source.get("key");
-
         source.faultAllBound().test();
     }
+
     @Test
     public void testFaultIfBoundOnlyFaultsBound()
     {
@@ -813,10 +800,10 @@ public class SubjectMapTest
             }
         });
 
-        TestSubscriber<Integer> sub = source.get("key").test();
+        TestSubscriber<Integer> keySubscription = source.get("key").test();
 
         singleSource.onSuccess(1234);
-        sub.assertValue(1234);
+        keySubscription.assertValue(1234);
 
         source.faultIfBound("key").test().awaitCount(1);
         singleSource.onSuccess(123);
@@ -848,10 +835,10 @@ public class SubjectMapTest
             }
         });
 
-        TestSubscriber<Integer> sub = source.get("key").test();
+        TestSubscriber<Integer> keySubscription = source.get("key").test();
 
         singleSource.onSuccess(1234);
-        sub.assertValue(1234);
+        keySubscription.assertValue(1234);
 
         source.faultAllBound().test().awaitCount(1);
         singleSource.onSuccess(123);
@@ -869,20 +856,20 @@ public class SubjectMapTest
     @Test
     public void faultIfBoundWithNoFaultHandlerDoesNotThrow()
     {
-        TestSubscriber<Integer> sub = source.get("key").test();
+        TestSubscriber<Integer> keySubscription = source.get("key").test();
         TestObserver<Void> observer = source.faultIfBound("key").test().awaitCount(1);
-        sub.assertNoValues();
-        sub.assertNoErrors();
+        keySubscription.assertNoValues();
+        keySubscription.assertNoErrors();
         observer.assertNoErrors();
     }
 
     @Test
     public void faultAllBoundWithNoFaultHandlerDoesNotThrow()
     {
-        TestSubscriber<Integer> sub = source.get("key").test();
+        TestSubscriber<Integer> keySubscriber = source.get("key").test();
         TestObserver<Void> observer = source.faultAllBound().test().awaitCount(1);
-        sub.assertNoValues();
-        sub.assertNoErrors();
+        keySubscriber.assertNoValues();
+        keySubscriber.assertNoErrors();
         observer.assertNoErrors();
     }
 
@@ -904,10 +891,16 @@ public class SubjectMapTest
             }
         });
 
-        TestSubscriber<Integer> sub = source.get("key").test();
+        TestSubscriber<Integer> keySubscriber = source.get("key").test();
 
-        TestObserver<Void> subscriber = source.faultAllBound().test();
-        TestObserver<Void> subscriber2 = source.faultIfBound("key").test();
-        subscriber.assertError(faultException);
+        TestObserver<Void> allBoundObserver = source.faultAllBound().test();
+        TestObserver<Void> keyBoundObserver = source.faultIfBound("key").test();
+
+        // Initial subscription should fault a value correctly
+        keySubscriber.assertNoErrors();
+
+        // Subsequent faults should throw an error in the fault handler
+        allBoundObserver.assertError(faultException);
+        keyBoundObserver.assertError(faultException);
     }
 }
