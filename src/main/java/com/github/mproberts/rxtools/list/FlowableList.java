@@ -85,7 +85,6 @@ public abstract class FlowableList<T>
         return concat(of(lists));
     }
 
-
     /**
      * Transforms an FlowableList containing VisibilityState items into an FlowableList
      * which includes in its emissions the changes in visibility status of the items within the
@@ -291,5 +290,16 @@ public abstract class FlowableList<T>
     public FlowableList<T> cache(int weakCacheSize, int strongCacheSize)
     {
         return new CachedFlowableList<>(this, weakCacheSize, strongCacheSize);
+    }
+
+    /**
+     * Wraps the supplied list by adding a header to the start of the list when it is non-empty
+     * @param header The object to use as a header
+     * @return A header flowable list which will emit an additional header object as a part of the list
+     *         whenever values are present in the wrapped list.
+     */
+    public FlowableList withHeader(Object header)
+    {
+        return new HeaderFlowableList(this, header);
     }
 }
