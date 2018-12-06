@@ -6,6 +6,7 @@ import io.reactivex.functions.Function;
 
 public class Optional<T>
 {
+    private static final int OPTIONAL_HASHCODE_MIX = 0xbf206d77;
     private static final Optional<?> INVALID = new Optional<>(null);
 
     private final T _value;
@@ -55,5 +56,40 @@ public class Optional<T>
     public T orElse(@NonNull T other)
     {
         return _value == null ? other : _value;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof Optional)) {
+            return false;
+        }
+
+        Optional<?> other = (Optional<?>) obj;
+
+        if (_value == other._value) {
+            return true;
+        } else if (_value == null || other._value == null) {
+            return false;
+        }
+
+        return _value.equals(other._value);
+    }
+
+    @Override
+    public int hashCode() {
+        if (_value == null) {
+            return 0;
+        }
+
+        return _value.hashCode() ^ OPTIONAL_HASHCODE_MIX;
+    }
+
+    @Override
+    public String toString() {
+        if (_value == null) {
+            return "Optional(null)";
+        }
+
+        return "Optional(" + _value.toString() + ")";
     }
 }
