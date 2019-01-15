@@ -28,6 +28,17 @@ public abstract class FlowableList<T>
     public abstract Flowable<Update<T>> updates();
 
     /**
+     * Creates an FlowableList which wraps a flowable stream of updates
+     * @param flowable The flowable stream to wrap
+     * @param <T> The type of elements in the list
+     * @return The wrapped FlowableList
+     */
+    public static <T> FlowableList<T> wrap(Flowable<Update<T>> flowable)
+    {
+        return new WrappedFlowableList<>(flowable);
+    }
+
+    /**
      * Creates an FlowableList which will contain all and only the provided list items
      * @param list The list of items to wrap
      * @param <T> The type of elements
