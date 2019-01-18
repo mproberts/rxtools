@@ -3,6 +3,7 @@ package com.github.mproberts.rxtools.list;
 import com.github.mproberts.rxtools.map.SubjectMap;
 import com.github.mproberts.rxtools.types.Optional;
 import io.reactivex.Flowable;
+import io.reactivex.FlowableOperator;
 import io.reactivex.Scheduler;
 import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
@@ -312,5 +313,15 @@ public abstract class FlowableList<T>
     public FlowableList withHeader(Object header)
     {
         return new HeaderFlowableList(this, header);
+    }
+
+    /**
+     * Wraps the supplied list's updates with the provided lift operator.
+     * See https://github.com/ReactiveX/RxJava/wiki/Implementing-Your-Own-Operators for documentation on lift()
+     * @param operator The operator to apply to update()
+     * @return A flowable list to which the provided `lift` operator is applied.
+     */
+    public FlowableList<T> lift(FlowableOperator<Update<T>, Update<T>> operator) {
+        return new LiftedFlowableList<>(updates(), operator);
     }
 }
