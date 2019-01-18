@@ -319,9 +319,20 @@ public abstract class FlowableList<T>
      * Wraps the supplied list's updates with the provided lift operator.
      * See https://github.com/ReactiveX/RxJava/wiki/Implementing-Your-Own-Operators for documentation on lift()
      * @param operator The operator to apply to update()
-     * @return A flowable list to which the provided `lift` operator is applied.
+     * @return A flowable list to which the provided `lift` operator is applied to the updates() result.
      */
     public FlowableList<T> lift(FlowableOperator<Update<T>, Update<T>> operator) {
         return new LiftedFlowableList<>(updates(), operator);
+    }
+
+    /**
+     * Wraps the supplied list's update with the share() operator, allowing to share a single subscription
+     * to the underlying Flowable.
+     * This is useful if you need to subscribe to the list's updates in several places and subscribing
+     * is a costly operation.
+     * @return A flowable list whose updates share a single subscription.
+     */
+    public FlowableList<T> share() {
+        return new SharedFlowableList<>(updates());
     }
 }
