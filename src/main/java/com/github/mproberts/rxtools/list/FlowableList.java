@@ -110,7 +110,6 @@ public abstract class FlowableList<T>
         return new SwitchMapFlowableList<>(list);
     }
 
-    
     /**
      * Transforms an FlowableList containing VisibilityState items into an FlowableList
      * which includes in its emissions the changes in visibility status of the items within the
