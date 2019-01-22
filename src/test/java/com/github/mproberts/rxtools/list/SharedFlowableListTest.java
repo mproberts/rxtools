@@ -58,6 +58,26 @@ public class SharedFlowableListTest {
     }
 
     @Test
+    public void testDisposeThenSubscribeTriggersNewSubscription() {
+        TestFlowableOnSubscribe subscriptionTracker = new TestFlowableOnSubscribe();
+        Flowable<List<String>> source = Flowable.create(subscriptionTracker, BackpressureStrategy.BUFFER);
+
+        FlowableList<String> list = FlowableList.diff(source).share();
+
+        Assert.assertEquals(0, subscriptionTracker.subscriptionCount);
+
+        TestSubscriber subscriber1 = list.updates().test();
+        TestSubscriber subscriber2 = list.updates().test();
+        Assert.assertEquals(1, subscriptionTracker.subscriptionCount);
+        Assert.assertEquals(1, subscriptionTracker.subscriptionCount);
+        subscriber1.dispose();
+        subscriber2.dispose();
+
+        list.updates().test();
+        Assert.assertEquals(2, subscriptionTracker.subscriptionCount);
+    }
+
+    @Test
     public void testForwardsAllUpdates() {
         TestFlowableOnSubscribe subscriptionTracker = new TestFlowableOnSubscribe();
         Flowable<List<String>> source = Flowable.create(subscriptionTracker, BackpressureStrategy.BUFFER);
