@@ -12,26 +12,26 @@ import io.reactivex.FlowableEmitter;
 import io.reactivex.FlowableOnSubscribe;
 import io.reactivex.subscribers.TestSubscriber;
 
-public class SharedFlowableListTest {
+class TestFlowableOnSubscribe implements FlowableOnSubscribe<List<String>> {
+    private int _subscriptionCount = 0;
+    private FlowableEmitter<List<String>> _latestEmitter;
 
-    private class TestFlowableOnSubscribe implements FlowableOnSubscribe<List<String>> {
-        private int _subscriptionCount = 0;
-        private FlowableEmitter<List<String>> _latestEmitter;
-
-        @Override
-        public void subscribe(FlowableEmitter<List<String>> flowableEmitter) {
-            _subscriptionCount++;
-            _latestEmitter = flowableEmitter;
-        }
-
-        int subscriptionCount() {
-            return _subscriptionCount;
-        }
-
-        FlowableEmitter latestEmitter() {
-            return _latestEmitter;
-        }
+    @Override
+    public void subscribe(FlowableEmitter<List<String>> flowableEmitter) {
+        _subscriptionCount++;
+        _latestEmitter = flowableEmitter;
     }
+
+    int subscriptionCount() {
+        return _subscriptionCount;
+    }
+
+    FlowableEmitter latestEmitter() {
+        return _latestEmitter;
+    }
+}
+
+public class SharedFlowableListTest {
 
     @Test
     public void testWithoutShareOperator() {

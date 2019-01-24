@@ -13,60 +13,60 @@ import io.reactivex.FlowableOperator;
 import io.reactivex.processors.PublishProcessor;
 import io.reactivex.subscribers.TestSubscriber;
 
-public class LiftedFlowableListTest {
+class TestOperator implements FlowableOperator<Update<String>, Update<String>> {
 
-    private class TestOperator implements FlowableOperator<Update<String>, Update<String>> {
+    private boolean _didSubscribe = false;
+    private Throwable _error;
+    private Update<String> _nextUpdate;
+    private boolean _didComplete = false;
 
-        private boolean _didSubscribe = false;
-        private Throwable _error;
-        private Update<String> _nextUpdate;
-        private boolean _didComplete = false;
+    @Override
+    public Subscriber<? super Update<String>> apply(final Subscriber<? super Update<String>> subscriber) throws Exception {
+        return new Subscriber<Update<String>>() {
+            @Override
+            public void onSubscribe(Subscription subscription) {
+                _didSubscribe = true;
+                subscriber.onSubscribe(subscription);
+            }
 
-        @Override
-        public Subscriber<? super Update<String>> apply(final Subscriber<? super Update<String>> subscriber) throws Exception {
-            return new Subscriber<Update<String>>() {
-                @Override
-                public void onSubscribe(Subscription subscription) {
-                    _didSubscribe = true;
-                    subscriber.onSubscribe(subscription);
-                }
+            @Override
+            public void onNext(Update<String> stringUpdate) {
+                _nextUpdate = stringUpdate;
+                subscriber.onNext(stringUpdate);
+            }
 
-                @Override
-                public void onNext(Update<String> stringUpdate) {
-                    _nextUpdate = stringUpdate;
-                    subscriber.onNext(stringUpdate);
-                }
+            @Override
+            public void onError(Throwable throwable) {
+                _error = throwable;
+                subscriber.onError(throwable);
+            }
 
-                @Override
-                public void onError(Throwable throwable) {
-                    _error = throwable;
-                    subscriber.onError(throwable);
-                }
-
-                @Override
-                public void onComplete() {
-                    _didComplete = true;
-                    subscriber.onComplete();
-                }
-            };
-        }
-
-        boolean didSubscribe() {
-            return _didSubscribe;
-        }
-
-        Throwable error() {
-            return _error;
-        }
-
-        Update<String> nextUpdate() {
-            return _nextUpdate;
-        }
-
-        boolean didComplete() {
-            return _didComplete;
-        }
+            @Override
+            public void onComplete() {
+                _didComplete = true;
+                subscriber.onComplete();
+            }
+        };
     }
+
+    boolean didSubscribe() {
+        return _didSubscribe;
+    }
+
+    Throwable error() {
+        return _error;
+    }
+
+    Update<String> nextUpdate() {
+        return _nextUpdate;
+    }
+
+    boolean didComplete() {
+        return _didComplete;
+    }
+}
+
+public class LiftedFlowableListTest {
 
     private PublishProcessor<List<String>> _source;
     private FlowableList<String> _list;
