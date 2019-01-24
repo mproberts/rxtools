@@ -15,13 +15,21 @@ import io.reactivex.subscribers.TestSubscriber;
 public class SharedFlowableListTest {
 
     private class TestFlowableOnSubscribe implements FlowableOnSubscribe<List<String>> {
-        private int subscriptionCount = 0;
-        private FlowableEmitter<List<String>> latestEmitter;
+        private int _subscriptionCount = 0;
+        private FlowableEmitter<List<String>> _latestEmitter;
 
         @Override
-        public void subscribe(FlowableEmitter<List<String>> flowableEmitter) throws Exception {
-            subscriptionCount++;
-            latestEmitter = flowableEmitter;
+        public void subscribe(FlowableEmitter<List<String>> flowableEmitter) {
+            _subscriptionCount++;
+            _latestEmitter = flowableEmitter;
+        }
+
+        int subscriptionCount() {
+            return _subscriptionCount;
+        }
+
+        FlowableEmitter latestEmitter() {
+            return _latestEmitter;
         }
     }
 
@@ -32,13 +40,13 @@ public class SharedFlowableListTest {
 
         FlowableList<String> list = FlowableList.diff(source);
 
-        Assert.assertEquals(0, subscriptionTracker.subscriptionCount);
+        Assert.assertEquals(0, subscriptionTracker.subscriptionCount());
 
         list.updates().test();
-        Assert.assertEquals(1, subscriptionTracker.subscriptionCount);
+        Assert.assertEquals(1, subscriptionTracker.subscriptionCount());
 
         list.updates().test();
-        Assert.assertEquals(2, subscriptionTracker.subscriptionCount);
+        Assert.assertEquals(2, subscriptionTracker.subscriptionCount());
     }
 
     @Test
@@ -48,13 +56,13 @@ public class SharedFlowableListTest {
 
         FlowableList<String> list = FlowableList.diff(source).share();
 
-        Assert.assertEquals(0, subscriptionTracker.subscriptionCount);
+        Assert.assertEquals(0, subscriptionTracker.subscriptionCount());
 
         list.updates().test();
-        Assert.assertEquals(1, subscriptionTracker.subscriptionCount);
+        Assert.assertEquals(1, subscriptionTracker.subscriptionCount());
 
         list.updates().test();
-        Assert.assertEquals(1, subscriptionTracker.subscriptionCount);
+        Assert.assertEquals(1, subscriptionTracker.subscriptionCount());
     }
 
     @Test
@@ -64,17 +72,17 @@ public class SharedFlowableListTest {
 
         FlowableList<String> list = FlowableList.diff(source).share();
 
-        Assert.assertEquals(0, subscriptionTracker.subscriptionCount);
+        Assert.assertEquals(0, subscriptionTracker.subscriptionCount());
 
         TestSubscriber subscriber1 = list.updates().test();
         TestSubscriber subscriber2 = list.updates().test();
-        Assert.assertEquals(1, subscriptionTracker.subscriptionCount);
-        Assert.assertEquals(1, subscriptionTracker.subscriptionCount);
+        Assert.assertEquals(1, subscriptionTracker.subscriptionCount());
+        Assert.assertEquals(1, subscriptionTracker.subscriptionCount());
         subscriber1.dispose();
         subscriber2.dispose();
 
         list.updates().test();
-        Assert.assertEquals(2, subscriptionTracker.subscriptionCount);
+        Assert.assertEquals(2, subscriptionTracker.subscriptionCount());
     }
 
     @Test
@@ -87,7 +95,7 @@ public class SharedFlowableListTest {
         TestSubscriber sub1 = list.updates().test();
         TestSubscriber sub2 = list.updates().test();
 
-        Assert.assertEquals(1, subscriptionTracker.subscriptionCount);
+        Assert.assertEquals(1, subscriptionTracker.subscriptionCount());
 
         Assert.assertEquals(0, sub1.values().size());
         Assert.assertEquals(0, sub2.values().size());
@@ -97,7 +105,7 @@ public class SharedFlowableListTest {
             add("un");
             add("deux");
         }};
-        subscriptionTracker.latestEmitter.onNext(testList);
+        subscriptionTracker.latestEmitter().onNext(testList);
 
         Assert.assertEquals(1, sub1.values().size());
         Assert.assertEquals(1, sub2.values().size());
