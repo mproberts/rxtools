@@ -330,9 +330,20 @@ public abstract class FlowableList<T>
      * to the underlying Flowable.
      * This is useful if you need to subscribe to the list's updates in several places and subscribing
      * is a costly operation.
+     * Consider using this operator with replayAndAutoConnect in case updates may be emitted before
+     * all subscribers are watching the updates.
      * @return A flowable list whose updates share a single subscription.
      */
     public FlowableList<T> share() {
         return new SharedFlowableList<>(updates());
+    }
+
+    /**
+     * Wraps the supplied list's update with the replay() and autoConnect() operators, allowing updates to be replayed.
+     * This can be useful when sharing a subscription, so that a later subscriber can still get the emissions.
+     * @return A flowable list whose updates will be wrapped with replay()
+     */
+    public FlowableList<T> replayAndAutoConnect(int bufferSize) {
+        return new ReplayFlowableList<>(updates(), bufferSize);
     }
 }
