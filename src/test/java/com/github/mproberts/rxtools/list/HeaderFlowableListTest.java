@@ -3,6 +3,7 @@ package com.github.mproberts.rxtools.list;
 import io.reactivex.subscribers.TestSubscriber;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -59,4 +60,24 @@ public class HeaderFlowableListTest
         assertEquals(Arrays.asList(), update4.list);
         assertEquals(Change.reloaded(), update4.changes.get(0));
     }
+
+    @Test
+    public void testListWithInitialValue()
+    {
+        SimpleFlowableList<Integer> flowableList = new SimpleFlowableList<>(Arrays.asList(1,2));
+
+        FlowableList headerList = flowableList.withHeader("header");
+        TestSubscriber testSubscriber = new TestSubscriber();
+
+        headerList.updates().subscribe(testSubscriber);
+
+        testSubscriber.assertValueCount(1);
+
+        List<Update> onNextEvents = testSubscriber.values();
+
+        Update headerUpdate = onNextEvents.get(0);
+        assertEquals(Change.reloaded(), headerUpdate.changes.get(1));
+        assertEquals(Arrays.asList("header", 1, 2), headerUpdate.list);
+    }
+
 }
