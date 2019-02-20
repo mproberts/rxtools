@@ -57,6 +57,7 @@ public class HeaderFlowableList extends FlowableList {
 
                 return new Update(new ConcatList(Arrays.asList(_header), update.list), changes);
             }
-        });
+        })
+                .skip(1); // Always skip the first emission (the startsWith) since we are guaranteeing that to be not of any use.
     }
 }
