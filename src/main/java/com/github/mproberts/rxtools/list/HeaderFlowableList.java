@@ -2,6 +2,7 @@ package com.github.mproberts.rxtools.list;
 
 import io.reactivex.Flowable;
 import io.reactivex.functions.BiFunction;
+import io.reactivex.functions.Function;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -22,7 +23,9 @@ public class HeaderFlowableList extends FlowableList {
 
     @Override
     public Flowable<Update> updates() {
-        return _list.updates().scan(new BiFunction<Update, Update, Update>() {
+        return _list.updates()
+                .startWith(new Update(new ArrayList(), Change.reloaded()))
+                .scan(new BiFunction<Update, Update, Update>() {
             @Override
             public Update apply(Update previous, Update update) throws Exception {
                 if (update.list.isEmpty()) {

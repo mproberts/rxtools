@@ -3,6 +3,7 @@ package com.github.mproberts.rxtools.list;
 import io.reactivex.subscribers.TestSubscriber;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -21,18 +22,18 @@ public class HeaderFlowableListTest
 
         headerList.updates().subscribe(testSubscriber);
 
-        testSubscriber.assertValueCount(1);
+        testSubscriber.assertValueCount(2);
 
         List<Update> onNextEvents = testSubscriber.values();
 
-        Update update = onNextEvents.get(0);
+        Update update = onNextEvents.get(1);
 
         assertEquals(Change.reloaded(), update.changes.get(0));
         assertEquals(Arrays.asList(), update.list);
 
         flowableList.add(1);
 
-        Update update1 = onNextEvents.get(1);
+        Update update1 = onNextEvents.get(2);
 
         assertEquals(Arrays.asList(0, 1), update1.list);
         assertEquals(Change.inserted(0), update1.changes.get(0));
@@ -40,23 +41,47 @@ public class HeaderFlowableListTest
 
         flowableList.add(2);
 
-        Update update2 = onNextEvents.get(2);
+        Update update2 = onNextEvents.get(3);
 
         assertEquals(Arrays.asList(0, 1, 2), update2.list);
         assertEquals(Change.inserted(2), update2.changes.get(0));
 
         flowableList.remove(0);
 
-        Update update3 = onNextEvents.get(3);
+        Update update3 = onNextEvents.get(4);
 
         assertEquals(Arrays.asList(0, 2), update3.list);
         assertEquals(Change.removed(1), update3.changes.get(0));
 
         flowableList.clear();
 
-        Update update4 = onNextEvents.get(4);
+        Update update4 = onNextEvents.get(5);
 
         assertEquals(Arrays.asList(), update4.list);
         assertEquals(Change.reloaded(), update4.changes.get(0));
     }
+
+    @Test
+    public void testListWithInitialValue()
+    {
+        SimpleFlowableList<Integer> flowableList = new SimpleFlowableList<>(Arrays.asList(1,2));
+
+        FlowableList headerList = flowableList.withHeader("header");
+        TestSubscriber testSubscriber = new TestSubscriber();
+
+        headerList.updates().subscribe(testSubscriber);
+
+        testSubscriber.assertValueCount(2);
+
+        List<Update> onNextEvents = testSubscriber.values();
+
+        Update initialUpdate = onNextEvents.get(0);
+        assertEquals(Change.reloaded(), initialUpdate.changes.get(0));
+        assertEquals(Arrays.asList(), initialUpdate.list);
+
+        Update headerUpdate = onNextEvents.get(1);
+        assertEquals(Change.reloaded(), headerUpdate.changes.get(1));
+        assertEquals(Arrays.asList("header", 1, 2), headerUpdate.list);
+    }
+
 }
