@@ -9,11 +9,9 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-public class HeaderFlowableListTest
-{
+public class HeaderFlowableListTest {
     @Test
-    public void testSingleList()
-    {
+    public void testSingleList() {
         SimpleFlowableList<Integer> flowableList = new SimpleFlowableList<>();
 
         FlowableList headerList = flowableList.withHeader(0);
@@ -62,9 +60,8 @@ public class HeaderFlowableListTest
     }
 
     @Test
-    public void testListWithInitialValue()
-    {
-        SimpleFlowableList<Integer> flowableList = new SimpleFlowableList<>(Arrays.asList(1,2));
+    public void testListWithInitialValue() {
+        SimpleFlowableList<Integer> flowableList = new SimpleFlowableList<>(Arrays.asList(1, 2));
 
         FlowableList headerList = flowableList.withHeader("header");
         TestSubscriber testSubscriber = new TestSubscriber();
@@ -78,6 +75,49 @@ public class HeaderFlowableListTest
         Update headerUpdate = onNextEvents.get(0);
         assertEquals(Change.reloaded(), headerUpdate.changes.get(1));
         assertEquals(Arrays.asList("header", 1, 2), headerUpdate.list);
+    }
+
+    @Test
+    public void testHeaderAlways() {
+        SimpleFlowableList<Integer> flowableList = new SimpleFlowableList<>();
+
+        FlowableList headerList = flowableList.withHeaderAlways(0);
+
+        TestSubscriber testSubscriber = new TestSubscriber();
+
+        headerList.updates().subscribe(testSubscriber);
+
+        testSubscriber.assertValueCount(1);
+
+        List<Update> onNextEvents = testSubscriber.values();
+
+        Update update = onNextEvents.get(0);
+        assertEquals(Change.reloaded(), update.changes.get(0));
+        assertEquals(Arrays.asList(0), update.list);
+
+        flowableList.add(1);
+        Update update1 = onNextEvents.get(1);
+        assertEquals(Arrays.asList(0, 1), update1.list);
+        assertEquals(Change.inserted(1), update1.changes.get(0));
+
+        flowableList.add(2);
+        Update update2 = onNextEvents.get(2);
+        assertEquals(Arrays.asList(0, 1, 2), update2.list);
+        assertEquals(Change.inserted(2), update2.changes.get(0));
+
+        flowableList.remove(0);
+
+        Update update3 = onNextEvents.get(3);
+
+        assertEquals(Arrays.asList(0, 2), update3.list);
+        assertEquals(Change.removed(1), update3.changes.get(0));
+
+        flowableList.clear();
+
+        Update update4 = onNextEvents.get(4);
+        assertEquals(Arrays.asList(0), update4.list);
+        assertEquals(Change.reloaded(), update4.changes.get(0));
+
     }
 
 }

@@ -316,6 +316,16 @@ public abstract class FlowableList<T>
     }
 
     /**
+     * Wraps the supplied list by adding a header to the start of the list that is always present.
+     * @param header The object to use as a header
+     * @return A header flowable list which will emit an additional header object as a part of the list.
+     */
+    public FlowableList withHeaderAlways(Object header)
+    {
+        return new HeaderFlowableList(this, header, true);
+    }
+
+    /**
      * Wraps the supplied list's updates with the provided lift operator.
      * See https://github.com/ReactiveX/RxJava/wiki/Implementing-Your-Own-Operators for documentation on lift()
      * @param operator The operator to apply to update()
