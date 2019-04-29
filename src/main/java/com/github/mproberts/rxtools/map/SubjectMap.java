@@ -7,6 +7,7 @@ import org.reactivestreams.Subscription;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -52,16 +53,19 @@ public class SubjectMap<K, V>
     private final BehaviorProcessor<K> _faults;
 
     private Function<K, Single<V>> _faultHandler;
+    private Function<List<K>, Single<List<V>>> _multiFaultHandler;
 
     private class OnSubscribeAttach implements FlowableOnSubscribe<V>
     {
         private final AtomicBoolean _isFirstFault = new AtomicBoolean(true);
         private final K _key;
         private volatile Processor<V, V> _valueObservable;
+        private Function<K, Single<V>> _faultHandler;
 
-        OnSubscribeAttach(K key)
+        OnSubscribeAttach(K key, Function<K, Single<V>> faultHandler)
         {
             _key = key;
+            _faultHandler = faultHandler;
         }
 
         @Override
@@ -80,13 +84,11 @@ public class SubjectMap<K, V>
                         return new CompletableSource() {
                             @Override
                             public void subscribe(CompletableObserver completableObserver) {
-                                Function<K, Single<V>> faultHandler = _faultHandler;
-
                                 emitFault(_key);
 
-                                if (faultHandler != null) {
+                                if (_faultHandler != null) {
                                     try {
-                                        Single<V> fault = faultHandler.apply(_key);
+                                        Single<V> fault = _faultHandler.apply(_key);
 
                                         fault.doOnSuccess(new Consumer<V>() {
                                             @Override
@@ -301,6 +303,11 @@ public class SubjectMap<K, V>
         _faultHandler = faultHandler;
     }
 
+    public void setMultiFaultHandler(Function<List<K>, Single<List<V>>> faultHandler)
+    {
+        _multiFaultHandler = faultHandler;
+    }
+
     /**
      * Returns a stream of keys indicating which values need to be faulted in to satisfy
      * the observables which have been requested through the system
@@ -505,6 +512,164 @@ public class SubjectMap<K, V>
     }
 
     /**
+     * Returns a list of observables associated with their respective keys. The observable
+     * will request that a value be supplied when the observable is bound and automatically
+     * manage the lifecycle of the observable internally.
+     *
+     * All keys will emit faults together if a value does not yet exist. If a value already
+     * exists for a particular key, that key will be skipped.
+     *
+     * @param keys list of keys whose associated observables will be returned
+     *
+     * @return a list of observables which, when subscribed, will be bound to the respective key
+     * and will receive all emissions and errors for the specified key
+     */
+    public List<Flowable<V>> getAll(List<K> keys)
+    {
+        WeakReference<Flowable<V>> weakObservable;
+        int remainingCount = keys.size();
+
+        ArrayList<K> remainingKeys = new ArrayList<>(keys.size());
+        ArrayList<Flowable<V>> values = new ArrayList<>(keys.size());
+
+        for (int i = 0, l = keys.size(); i < l; ++i) {
+            values.add(null);
+        }
+
+        remainingKeys.addAll(keys);
+
+        _readLock.lock();
+
+        try {
+            // attempt to retrieve the weakly held observables
+            for (int i = 0, l = keys.size(); i < l; ++i) {
+                Flowable<V> observable;
+                K key = remainingKeys.get(i);
+
+                if (_weakCache.containsKey(key)) {
+                    weakObservable = _weakCache.get(key);
+                    observable = weakObservable.get();
+
+                    if (observable != null) {
+                        // we already have a cached observable bound to this key
+                        values.set(i, observable);
+                        remainingKeys.set(i, null);
+                        --remainingCount;
+                    }
+                }
+            }
+
+            // found caches for all values
+            if (remainingCount == 0) {
+                return values;
+            }
+
+            // we do not have an observable for the key, escalate the lock
+            _readLock.unlock();
+            _writeLock.lock();
+
+            try {
+                // recheck the observable since we had to retake the lock
+                for (int i = 0, l = keys.size(); i < l; ++i) {
+                    Flowable<V> observable;
+                    K key = remainingKeys.get(i);
+
+                    if (_weakCache.containsKey(key)) {
+                        weakObservable = _weakCache.get(key);
+                        observable = weakObservable.get();
+
+                        if (observable != null) {
+                            // we found a hit this time around, return the hit
+                            values.set(i, observable);
+                            remainingKeys.set(i, null);
+
+                            --remainingCount;
+                        } else {
+                            // the target of the weak source should have already been cleared by the
+                            // garbage collector since the source is retained by the cached observable
+                            _weakSources.remove(key);
+                        }
+                    }
+                }
+
+                // found caches for all values, after re-checks
+                if (remainingCount == 0) {
+                    return values;
+                }
+
+                final ArrayList<K> filteredKeys = new ArrayList<>(remainingCount);
+
+                for (int i = 0, l = keys.size(); i < l; ++i) {
+                    K key = remainingKeys.get(i);
+
+                    if (key != null) {
+                        filteredKeys.add(key);
+                    }
+                }
+
+                Function<K, Single<V>> faultHandler = _faultHandler;
+
+                if (_multiFaultHandler != null) {
+                    faultHandler = new Function<K, Single<V>>() {
+                        private volatile Single<List<V>> _allFetchedValues;
+
+                        void prepare() {
+                            if (_allFetchedValues == null) {
+                                try {
+                                    _allFetchedValues = _multiFaultHandler.apply(filteredKeys).cache();
+                                } catch (Exception e) {
+                                    _allFetchedValues = Single.error(e);
+                                }
+                            }
+                        }
+
+                        @Override
+                        public Single<V> apply(K k) throws Exception {
+                            prepare();
+
+                            final int index = filteredKeys.indexOf(k);
+
+                            return _allFetchedValues.map(new Function<List<V>, V>() {
+                                @Override
+                                public V apply(List<V> values) throws Exception {
+                                    return values.get(index);
+                                }
+                            });
+                        }
+                    };
+                }
+
+                for (int i = 0, l = keys.size(); i < l; ++i) {
+                    K key = remainingKeys.get(i);
+
+                    if (key == null) {
+                        continue;
+                    }
+
+                    // no observable was found in the cache, create a new binding
+                    Flowable<V> observable = Flowable.create(
+                        new OnSubscribeAttach(key, faultHandler),
+                        BackpressureStrategy.LATEST
+                    );
+
+                    values.set(i, observable);
+
+                    _weakCache.put(key, new WeakReference<>(observable));
+                }
+            }
+            finally {
+                _readLock.lock();
+                _writeLock.unlock();
+            }
+
+            return values;
+        }
+        finally {
+            _readLock.unlock();
+        }
+    }
+
+    /**
      * Returns an observable associated with the specified key. The observable will
      * request that a value be supplied when the observable is bound and automatically
      * manage the lifecycle of the observable internally
@@ -555,8 +720,24 @@ public class SubjectMap<K, V>
                     }
                 }
 
+                Function<K, Single<V>> faultHandler = _faultHandler;
+
+                if (_multiFaultHandler != null) {
+                    faultHandler = new Function<K, Single<V>>() {
+                        @Override
+                        public Single<V> apply(K k) throws Exception {
+                            return _multiFaultHandler.apply(Arrays.asList(k)).map(new Function<List<V>, V>() {
+                                @Override
+                                public V apply(List<V> vs) throws Exception {
+                                    return vs.get(0);
+                                }
+                            });
+                        }
+                    };
+                }
+
                 // no observable was found in the cache, create a new binding
-                observable = Flowable.create(new OnSubscribeAttach(key), BackpressureStrategy.LATEST);
+                observable = Flowable.create(new OnSubscribeAttach(key, faultHandler), BackpressureStrategy.LATEST);
 
                 _weakCache.put(key, new WeakReference<>(observable));
             }

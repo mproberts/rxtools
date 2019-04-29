@@ -19,6 +19,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -62,6 +63,15 @@ public class SubjectMapTest
     private <T> void subscribe(Flowable<T> observable, DisposableSubscriber<T> action)
     {
         _subscription.add(observable.subscribeWith(action));
+    }
+
+    private <T> void subscribeAll(List<Flowable<T>> observables, TestSubscriber<T> action)
+    {
+        for (int i = 0, l = observables.size(); i < l; ++i) {
+            Flowable<T> observable = observables.get(i);
+
+            _subscription.add(observable.subscribeWith(action));
+        }
     }
 
     private <T> void subscribe(Flowable<T> observable, TestSubscriber<T> action)
@@ -902,5 +912,61 @@ public class SubjectMapTest
         // Subsequent faults should throw an error in the fault handler
         allBoundObserver.assertError(faultException);
         keyBoundObserver.assertError(faultException);
+    }
+
+    @Test
+    public void testQueryAndIncrementOnMultiFaultWithHandler()
+    {
+        // setup
+        final AtomicInteger counter = new AtomicInteger(0);
+
+        source.setMultiFaultHandler(new Function<List<String>, Single<List<Integer>>>() {
+            @Override
+            public Single<List<Integer>> apply(List<String> s) throws Exception {
+                List<Integer> results = new ArrayList<>();
+
+                for (int i = 0, l = s.size(); i < l; ++i) {
+                    results.add(counter.incrementAndGet());
+                }
+
+                return Single.just(results);
+            }
+        });
+
+        TestSubscriber<Integer> testSubscriber1 = new TestSubscriber<>();
+        TestSubscriber<Integer> testSubscriber2 = new TestSubscriber<>();
+        TestSubscriber<Integer> testSubscriber3 = new TestSubscriber<>();
+        TestSubscriber<Integer> testSubscriber4 = new TestSubscriber<>();
+        TestSubscriber<Integer> testSubscriber5 = new TestSubscriber<>();
+        TestSubscriber<Integer> testSubscriber6 = new TestSubscriber<>();
+
+        List<String> keys = Arrays.asList("a", "b", "c");
+
+        subscribeAll(source.getAll(keys), testSubscriber1);
+
+        testSubscriber1.assertValues(1);
+
+        subscribe(source.get("a"), testSubscriber2);
+        subscribe(source.get("b"), testSubscriber4);
+        subscribe(source.get("c"), testSubscriber5);
+        System.gc();
+
+        testSubscriber1.assertValues(1);
+        testSubscriber2.assertValues(1);
+        testSubscriber4.assertValues(2);
+        testSubscriber5.assertValues(3);
+
+        unsubscribeAll();
+        System.gc();
+
+        subscribe(source.get("a"), testSubscriber3);
+        subscribe(source.get("b"), testSubscriber6);
+
+        source.onNext("a", 12);
+        source.onNext("b", 13);
+        source.onNext("b", 14);
+
+        testSubscriber3.assertValues(4, 12);
+        testSubscriber6.assertValues(5, 13, 14);
     }
 }
