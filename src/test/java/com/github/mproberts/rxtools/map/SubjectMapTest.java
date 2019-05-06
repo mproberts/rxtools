@@ -237,7 +237,7 @@ public class SubjectMapTest
 
         testSubscriber1.dispose();
 
-        assertTrue(isDisposed.get());
+        System.gc();
     }
 
     @Test
@@ -912,6 +912,55 @@ public class SubjectMapTest
         // Subsequent faults should throw an error in the fault handler
         allBoundObserver.assertError(faultException);
         keyBoundObserver.assertError(faultException);
+    }
+
+    @Test
+    public void testCancelFaultEarly()
+    {
+        final SingleSubject<Integer> faultSubject = SingleSubject.create();
+
+        source.setFaultHandler(new Function<String, Single<Integer>>() {
+            @Override
+            public Single<Integer> apply(String s) throws Exception {
+                return faultSubject;
+            }
+        });
+
+        TestSubscriber<Integer> testSubscriber1 = new TestSubscriber<>();
+        TestSubscriber<Integer> testSubscriber2 = new TestSubscriber<>();
+
+        subscribe(source.get("hello"), testSubscriber1);
+
+        testSubscriber1.dispose();
+        faultSubject.onSuccess(22);
+
+        subscribe(source.get("hello"), testSubscriber2);
+
+        testSubscriber2.awaitCount(1);
+        testSubscriber2.assertValues(22);
+    }
+
+    @Test
+    public void testEmitBeforeFault()
+    {
+        final SingleSubject<Integer> faultSubject = SingleSubject.create();
+
+        source.setFaultHandler(new Function<String, Single<Integer>>() {
+            @Override
+            public Single<Integer> apply(String s) throws Exception {
+                return faultSubject;
+            }
+        });
+
+        TestSubscriber<Integer> testSubscriber1 = new TestSubscriber<>();
+
+        subscribe(source.get("hello"), testSubscriber1);
+
+        source.onNext("hello", 44);
+
+        faultSubject.onSuccess(22);
+
+        testSubscriber1.assertValues(44);
     }
 
     @Test

@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -51,6 +52,7 @@ public class SubjectMap<K, V>
     private final HashMap<K, Flowable<V>> _cache;
 
     private final BehaviorProcessor<K> _faults;
+    private final BehaviorProcessor<List<K>> _multiFaults;
 
     private Function<K, Single<V>> _faultHandler;
     private Function<List<K>, Single<List<V>>> _multiFaultHandler;
@@ -58,9 +60,12 @@ public class SubjectMap<K, V>
     private class OnSubscribeAttach implements FlowableOnSubscribe<V>
     {
         private final AtomicBoolean _isFirstFault = new AtomicBoolean(true);
+        private final AtomicBoolean _valueSet = new AtomicBoolean(false);
         private final K _key;
         private volatile Processor<V, V> _valueObservable;
+        private volatile WeakReference<Processor<V,V>> _weakObservable;
         private Function<K, Single<V>> _faultHandler;
+        Completable _attachedFetch = null;
 
         OnSubscribeAttach(K key, Function<K, Single<V>> faultHandler)
         {
@@ -72,18 +77,17 @@ public class SubjectMap<K, V>
         public void subscribe(final FlowableEmitter<V> emitter) throws Exception
         {
             boolean isFirst = _isFirstFault.getAndSet(false);
-            Completable attachedFetch = null;
 
             if (isFirst) {
                 _valueObservable = attachSource(_key);
 
                 // since this is the first fetch of the observable, go grab the first emission
-                attachedFetch = Completable.defer(new Callable<CompletableSource>() {
+                _attachedFetch = Completable.defer(new Callable<CompletableSource>() {
                     @Override
                     public CompletableSource call() throws Exception {
                         return new CompletableSource() {
                             @Override
-                            public void subscribe(CompletableObserver completableObserver) {
+                            public void subscribe(final CompletableObserver completableObserver) {
                                 emitFault(_key);
 
                                 if (_faultHandler != null) {
@@ -93,9 +97,15 @@ public class SubjectMap<K, V>
                                         fault.doOnSuccess(new Consumer<V>() {
                                             @Override
                                             public void accept(V v) throws Exception {
-                                                _valueObservable.onNext(v);
+                                                if (_valueSet.compareAndSet(false, true)) {
+                                                    Processor<V, V> valueObservable = _weakObservable.get();
+
+                                                    if (valueObservable != null) {
+                                                        valueObservable.onNext(v);
+                                                    }
+                                                }
                                             }
-                                        }).toCompletable().subscribe(completableObserver);
+                                        }).toCompletable().subscribe();
                                     } catch (Exception e) {
                                         completableObserver.onError(e);
                                     }
@@ -105,7 +115,8 @@ public class SubjectMap<K, V>
                             }
                         };
                     }
-                });
+                })
+                .cache();
             }
 
             // in case you raced into this block but someone else won the coin toss
@@ -115,11 +126,14 @@ public class SubjectMap<K, V>
                 Thread.yield();
             }
 
-            final Completable initialValueFetch = attachedFetch;
+            _weakObservable = new WeakReference<>(_valueObservable);
+
+            final Completable initialValueFetch = _attachedFetch;
             final AtomicReference<Subscription> disposableTarget = new AtomicReference<>();
             final AtomicReference<Disposable> initialValueFetchDisposable = new AtomicReference<>();
 
             _valueObservable.subscribe(new FlowableSubscriber<V>() {
+
                 @Override
                 public void onSubscribe(Subscription s)
                 {
@@ -131,7 +145,11 @@ public class SubjectMap<K, V>
                         }, new Consumer<Throwable>() {
                             @Override
                             public void accept(Throwable throwable) throws Exception {
-                                _valueObservable.onError(throwable);
+                                Processor<V, V> processor = _weakObservable.get();
+
+                                if (processor != null) {
+                                    processor.onError(throwable);
+                                }
                             }
                         });
                         initialValueFetchDisposable.set(subscription);
@@ -144,16 +162,19 @@ public class SubjectMap<K, V>
 
                 @Override
                 public void onNext(V v) {
+                    _valueSet.set(true);
                     emitter.onNext(v);
                 }
 
                 @Override
                 public void onError(Throwable e) {
+                    _valueSet.set(true);
                     emitter.onError(e);
                 }
 
                 @Override
                 public void onComplete() {
+                    _valueSet.set(true);
                     emitter.onComplete();
                 }
             });
@@ -194,6 +215,7 @@ public class SubjectMap<K, V>
         _weakCache = new HashMap<>();
         _cache = new HashMap<>();
         _faults = BehaviorProcessor.create();
+        _multiFaults = BehaviorProcessor.create();
 
         _weakSources = new HashMap<>();
     }
@@ -320,6 +342,17 @@ public class SubjectMap<K, V>
     }
 
     /**
+     * Returns a stream of keys indicating which values need to be faulted in to satisfy
+     * the observables which have been requested through the system
+     *
+     * @return an observable stream of keys
+     */
+    public Flowable<List<K>> multiFaults()
+    {
+        return _multiFaults;
+    }
+
+    /**
      * Re-emits a fault for the specified key if there is someone bound
      */
     public Completable faultIfBound(final K key)
@@ -398,8 +431,10 @@ public class SubjectMap<K, V>
 
         // Emit all faults for old fault handlers
         for (K key : retainedKeys) {
-            emitFault(key);
+            _faults.onNext(key);
         }
+
+        _multiFaults.onNext(retainedKeys);
 
         // Only process faults if there is a handler explicitly set
         if (faultHandler == null) {
@@ -607,7 +642,7 @@ public class SubjectMap<K, V>
                     }
                 }
 
-                Function<K, Single<V>> faultHandler = _faultHandler;
+                Function<K, Single<V>> faultHandler;
 
                 if (_multiFaultHandler != null) {
                     faultHandler = new Function<K, Single<V>>() {
@@ -616,6 +651,8 @@ public class SubjectMap<K, V>
                         void prepare() {
                             if (_allFetchedValues == null) {
                                 try {
+                                    _multiFaults.onNext(filteredKeys);
+
                                     _allFetchedValues = _multiFaultHandler.apply(filteredKeys).cache();
                                 } catch (Exception e) {
                                     _allFetchedValues = Single.error(e);
@@ -627,6 +664,8 @@ public class SubjectMap<K, V>
                         public Single<V> apply(K k) throws Exception {
                             prepare();
 
+                            _faults.onNext(k);
+
                             final int index = filteredKeys.indexOf(k);
 
                             return _allFetchedValues.map(new Function<List<V>, V>() {
@@ -637,6 +676,8 @@ public class SubjectMap<K, V>
                             });
                         }
                     };
+                } else {
+                    faultHandler = _faultHandler;
                 }
 
                 for (int i = 0, l = keys.size(); i < l; ++i) {
