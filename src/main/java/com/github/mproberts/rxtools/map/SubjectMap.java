@@ -12,7 +12,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -105,7 +104,20 @@ public class SubjectMap<K, V>
                                                     }
                                                 }
                                             }
-                                        }).toCompletable().subscribe();
+                                        }).toCompletable().subscribe(new Action() {
+                                            @Override
+                                            public void run() throws Exception {
+                                            }
+                                        }, new Consumer<Throwable>() {
+                                            @Override
+                                            public void accept(Throwable throwable) throws Exception {
+                                                Processor<V, V> valueObservable = _weakObservable.get();
+
+                                                if (valueObservable != null) {
+                                                    valueObservable.onError(throwable);
+                                                }
+                                            }
+                                        });
                                     } catch (Exception e) {
                                         completableObserver.onError(e);
                                     }

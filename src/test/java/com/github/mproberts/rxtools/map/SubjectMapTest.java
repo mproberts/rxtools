@@ -751,6 +751,27 @@ public class SubjectMapTest
     }
 
     @Test
+    public void testErrorPropagationInFaultHandler()
+    {
+        source.setFaultHandler(new Function<String, Single<Integer>>() {
+            @Override
+            public Single<Integer> apply(String s) {
+                return Single.just(123).map(new Function<Integer, Integer>() {
+                    @Override
+                    public Integer apply(Integer integer) throws Exception {
+                        throw new IllegalStateException("whoops");
+                    }
+                });
+            }
+        });
+
+        TestSubscriber<Integer> value = source.get("key").test();
+
+        value.awaitTerminalEvent();
+        value.assertError(IllegalStateException.class);
+    }
+
+    @Test
     public void testFaultIfBoundWhenNotBound()
     {
         source.setFaultHandler(new Function<String, Single<Integer>>() {
