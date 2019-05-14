@@ -18,8 +18,10 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -790,6 +792,24 @@ public class SubjectMapTest
     }
 
     @Test
+    public void testMultifaultIfBoundWhenNotBound()
+    {
+        source.setMultiFaultHandler(new Function<List<String>, Single<List<Integer>>>() {
+            @Override
+            public Single<List<Integer>> apply(List<String> strings) throws Exception {
+                fail("Nothing should be bound so no fault should occur.");
+                return Single.error(new Exception());
+            }
+        });
+
+        // No test() call so there will be no listeners bound
+        source.get("key");
+
+        source.faultIfBound("key").test().assertComplete();
+        source.faultAllBound().test().assertComplete();
+    }
+
+    @Test
     public void testFaultIfBoundOnlyFaultsBound()
     {
         source.setFaultHandler(new Function<String, Single<Integer>>() {
@@ -813,6 +833,32 @@ public class SubjectMapTest
         source.faultIfBound("faultKey").test().assertComplete();
         boundNoFault.assertValueCount(1);
         boundFault.assertValueCount(2);
+    }
+
+    @Test
+    public void testMultiFaultIfBoundOnlyFaultsBound()
+    {
+        source.setMultiFaultHandler(new Function<List<String>, Single<List<Integer>>>() {
+            boolean didFaultOnce = false;
+
+            public Single<List<Integer>> apply(List<String> strings) throws Exception {
+                if (didFaultOnce) {
+                    // We only want "faultKey to fault a second time"
+                    assertEquals("faultKey", strings.get(0));
+                }
+                else {
+                    didFaultOnce = true;
+                }
+                return Single.just(Arrays.asList(1));
+            }
+        });
+
+        TestSubscriber<Integer> boundNoFault = source.get("key").test();
+        TestSubscriber<Integer> boundFault = source.get("faultKey").test();
+
+        source.faultIfBound("faultKey").test().assertComplete();
+        boundNoFault.assertValues(1);
+        boundFault.assertValues(1, 1);
     }
 
     @Test
@@ -844,6 +890,41 @@ public class SubjectMapTest
         // Nothing should be faulted since it should no longer be bound
         source.faultAllBound();
         singleSource.onSuccess(124);
+
+        assertTrue(didFault[0]);
+        assertTrue(didFault[1]);
+        assertFalse(didFault[2]);
+    }
+
+    @Test
+    public void testMultiFaultIfBoundWhenBound()
+    {
+        final SingleSubject<List<Integer>> singleSource = SingleSubject.create();
+
+        final boolean[] didFault = {false, false, false};
+        source.setMultiFaultHandler(new Function<List<String>, Single<List<Integer>>>() {
+            int faultNum = 0;
+            @Override
+            public Single<List<Integer>> apply(List<String> s) {
+                didFault[faultNum] = true;
+                faultNum += 1;
+                return singleSource;
+            }
+        });
+
+        TestSubscriber<Integer> keySubscription = source.get("key").test();
+
+        singleSource.onSuccess(Arrays.asList(1234));
+        keySubscription.assertValue(1234);
+
+        source.faultIfBound("key").test().awaitCount(1);
+        singleSource.onSuccess(Arrays.asList(123));
+
+        source.clearAndDetachAll();
+
+        // Nothing should be faulted since it should no longer be bound
+        source.faultAllBound();
+        singleSource.onSuccess(Arrays.asList(124));
 
         assertTrue(didFault[0]);
         assertTrue(didFault[1]);
@@ -884,6 +965,56 @@ public class SubjectMapTest
         assertTrue(didFault[1]);
         assertFalse(didFault[2]);
     }
+
+    @Test
+    public void testMultiFaultAllBoundWhenBound()
+    {
+        final SingleSubject<List<Integer>> singleSource = SingleSubject.create();
+
+        final boolean[] didFault = {false, false, false, false};
+        source.setMultiFaultHandler(new Function<List<String>, Single<List<Integer>>>() {
+            int faultNum = 0;
+            @Override
+            public Single<List<Integer>> apply(List<String> s) {
+                didFault[faultNum] = true;
+
+                if (faultNum == 0) {
+                    assertEquals(s, Arrays.asList("key"));
+                } else if (faultNum == 1) {
+                    assertEquals(s, Arrays.asList("key2"));
+                } else if (faultNum == 2) {
+                    Collections.sort(s);
+                    assertTrue(s.equals(Arrays.asList("key", "key2")));
+                }
+
+                faultNum += 1;
+
+                return singleSource;
+            }
+        });
+
+        TestSubscriber<Integer> keySubscription = source.get("key").test();
+        TestSubscriber<Integer> keySubscription2 = source.get("key2").test();
+
+        singleSource.onSuccess(Arrays.asList(1234));
+        keySubscription.assertValue(1234);
+        keySubscription2.assertValue(1234);
+
+        source.faultAllBound().test().awaitCount(1);
+        singleSource.onSuccess(Arrays.asList(123));
+
+        source.clearAndDetachAll();
+
+        // Nothing should be faulted since it should no longer be bound
+        source.faultAllBound();
+        singleSource.onSuccess(Arrays.asList(124));
+
+        assertTrue(didFault[0]);
+        assertTrue(didFault[1]);
+        assertTrue(didFault[2]);
+        assertFalse(didFault[3]);
+    }
+
     @Test
     public void faultIfBoundWithNoFaultHandlerDoesNotThrow()
     {

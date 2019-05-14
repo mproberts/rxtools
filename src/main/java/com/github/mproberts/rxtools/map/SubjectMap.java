@@ -335,11 +335,13 @@ public class SubjectMap<K, V>
     public void setFaultHandler(Function<K, Single<V>> faultHandler)
     {
         _faultHandler = faultHandler;
+        _multiFaultHandler = null;
     }
 
     public void setMultiFaultHandler(Function<List<K>, Single<List<V>>> faultHandler)
     {
         _multiFaultHandler = faultHandler;
+        _faultHandler = null;
     }
 
     /**
@@ -432,14 +434,12 @@ public class SubjectMap<K, V>
      * @param retainedKeys keys that should be faulted if a faultHandler is set
      * @param completableObserver observer on which faults should be subscribed with
      */
-    private void processFaultForRetainedKeys(List<K> retainedKeys, CompletableObserver completableObserver) {
+    private void processFaultForRetainedKeys(final List<K> retainedKeys, CompletableObserver completableObserver) {
         // Only process the fault if there are any keys bound
         if (retainedKeys.isEmpty()) {
             Completable.complete().subscribe(completableObserver);
             return;
         }
-
-        Function<K, Single<V>> faultHandler = _faultHandler;
 
         // Emit all faults for old fault handlers
         for (K key : retainedKeys) {
@@ -449,34 +449,70 @@ public class SubjectMap<K, V>
         _multiFaults.onNext(retainedKeys);
 
         // Only process faults if there is a handler explicitly set
-        if (faultHandler == null) {
+        if (_faultHandler != null) {
+            Function<K, Single<V>> faultHandler = _faultHandler;
+            try {
+                List<Completable> faultCompletables = new ArrayList<>(retainedKeys.size());
+                for (final K key : retainedKeys) {
+                    Single<V> fault = faultHandler.apply(key);
+
+                    faultCompletables.add(fault.doOnSuccess(new Consumer<V>() {
+                        @Override
+                        public void accept(V v) throws Exception {
+                            _readLock.lock();
+                            WeakReference<Processor<V, V>> weakSource = _weakSources.get(key);
+                            _readLock.unlock();
+                            Processor<V, V> processor;
+                            if (weakSource != null && (processor = weakSource.get()) != null) {
+                                processor.onNext(v);
+                            }
+                        }
+                    }).toCompletable());
+                }
+                Completable.merge(faultCompletables).subscribe(completableObserver);
+            }
+            catch (Exception e) {
+                Completable.error(e).subscribe(completableObserver);
+            }
+        } else if (_multiFaultHandler != null)  {
+            Function<List<K>, Single<List<V>>> faultHandler = _multiFaultHandler;
+            try {
+                Single<List<V>> multiFault = faultHandler.apply(retainedKeys);
+
+                multiFault
+                        .doOnSuccess(new Consumer<List<V>>() {
+                            @Override
+                            public void accept(List<V> vs) throws Exception {
+                                if (vs.size() != retainedKeys.size()) {
+                                    throw new IllegalStateException("Multifault handler returned result of incorrect size.") ;
+                                }
+
+                                for (int i = 0; i < retainedKeys.size(); i++) {
+                                    K key = retainedKeys.get(i);
+                                    V value = vs.get(i);
+
+                                    _readLock.lock();
+                                    WeakReference<Processor<V, V>> weakSource = _weakSources.get(key);
+                                    _readLock.unlock();
+
+                                    Processor<V, V> processor;
+                                    if (weakSource != null && (processor = weakSource.get()) != null) {
+                                        processor.onNext(value);
+                                    }
+                                }
+                            }
+                        })
+                        .toCompletable()
+                        .subscribe(completableObserver);
+            }
+            catch (Exception e) {
+                Completable.error(e).subscribe(completableObserver);
+            }
+        } else {
             Completable.complete().subscribe(completableObserver);
             return;
         }
 
-        try {
-            List<Completable> faultCompletables = new ArrayList<>(retainedKeys.size());
-            for (final K key : retainedKeys) {
-                Single<V> fault = faultHandler.apply(key);
-
-                faultCompletables.add(fault.doOnSuccess(new Consumer<V>() {
-                    @Override
-                    public void accept(V v) throws Exception {
-                        _readLock.lock();
-                        WeakReference<Processor<V, V>> weakSource = _weakSources.get(key);
-                        _readLock.unlock();
-                        Processor<V, V> processor;
-                        if (weakSource != null && (processor = weakSource.get()) != null) {
-                            processor.onNext(v);
-                        }
-                    }
-                }).toCompletable());
-            }
-            Completable.merge(faultCompletables).subscribe(completableObserver);
-        }
-        catch (Exception e) {
-            Completable.error(e).subscribe(completableObserver);
-        }
     }
 
     /**
@@ -782,6 +818,11 @@ public class SubjectMap<K, V>
                             return _multiFaultHandler.apply(Arrays.asList(k)).map(new Function<List<V>, V>() {
                                 @Override
                                 public V apply(List<V> vs) throws Exception {
+
+                                    if (vs.size() != 1) {
+                                        throw new IllegalStateException("Multifault handler returned result of incorrect size.") ;
+                                    }
+
                                     return vs.get(0);
                                 }
                             });
