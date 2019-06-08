@@ -1121,4 +1121,165 @@ public class SubjectMapTest
         testSubscriber3.assertValues(4, 12);
         testSubscriber6.assertValues(5, 13, 14);
     }
+
+    @Test
+    public void testRestartingSingleFaultBeforeEmission() throws InterruptedException
+    {
+        source.setFaultHandler(new Function<String, Single<Integer>>() {
+            int attemptCount = 0;
+
+            @Override
+            public Single<Integer> apply(final String s) throws Exception {
+                return Single.timer(10, TimeUnit.MILLISECONDS)
+                        .map(new Function<Long, Integer>() {
+
+                            @Override
+                            public Integer apply(Long aLong) throws Exception {
+                                ++attemptCount;
+
+                                return Integer.parseInt(s) * 10 + attemptCount;
+                            }
+                        });
+            }
+        });
+
+        TestSubscriber<Integer> testSubscriber10 = new TestSubscriber<>();
+        TestSubscriber<Integer> testSubscriber11 = new TestSubscriber<>();
+
+        subscribe(source.get("1"), testSubscriber10);
+
+        testSubscriber10.dispose();
+
+        subscribe(source.get("1"), testSubscriber11);
+
+        testSubscriber11.awaitCount(1);
+
+        testSubscriber10.assertValues();
+        testSubscriber11.assertValues(11);
+    }
+
+    @Test
+    public void testRestartingSingleFaultAfterEmission() throws InterruptedException
+    {
+        source.setFaultHandler(new Function<String, Single<Integer>>() {
+            int attemptCount = 0;
+
+            @Override
+            public Single<Integer> apply(final String s) throws Exception {
+                return Single.timer(10, TimeUnit.MILLISECONDS)
+                        .map(new Function<Long, Integer>() {
+
+                            @Override
+                            public Integer apply(Long aLong) throws Exception {
+                                ++attemptCount;
+
+                                return Integer.parseInt(s) * 10 + attemptCount;
+                            }
+                        });
+            }
+        });
+
+        TestSubscriber<Integer> testSubscriber10 = new TestSubscriber<>();
+        TestSubscriber<Integer> testSubscriber11 = new TestSubscriber<>();
+
+        subscribe(source.get("1"), testSubscriber10);
+
+        testSubscriber10.awaitCount(1);
+
+        testSubscriber10.dispose();
+
+        subscribe(source.get("1"), testSubscriber11);
+
+        testSubscriber11.awaitCount(1);
+
+        testSubscriber10.assertValues(11);
+        testSubscriber11.assertValues(12);
+    }
+
+    @Test
+    public void testRetainedSingleFaultEmission() throws InterruptedException
+    {
+        source.setFaultHandler(new Function<String, Single<Integer>>() {
+            int attemptCount = 0;
+
+            @Override
+            public Single<Integer> apply(final String s) throws Exception {
+                return Single.timer(10, TimeUnit.MILLISECONDS)
+                        .map(new Function<Long, Integer>() {
+
+                            @Override
+                            public Integer apply(Long aLong) throws Exception {
+                                ++attemptCount;
+
+                                return Integer.parseInt(s) * 10 + attemptCount;
+                            }
+                        });
+            }
+        });
+
+        TestSubscriber<Integer> testSubscriber10 = new TestSubscriber<>();
+        TestSubscriber<Integer> testSubscriber11 = new TestSubscriber<>();
+        TestSubscriber<Integer> testSubscriber12 = new TestSubscriber<>();
+
+        subscribe(source.get("1"), testSubscriber10);
+        subscribe(source.get("1"), testSubscriber11);
+
+        testSubscriber10.awaitCount(1);
+
+        testSubscriber10.dispose();
+
+        subscribe(source.get("1"), testSubscriber12);
+
+        testSubscriber12.awaitCount(1);
+
+        testSubscriber10.assertValues(11);
+        testSubscriber11.assertValues(11);
+        testSubscriber12.assertValues(11);
+    }
+
+    @Test
+    public void testStackingSubscriptionOnSingleFault() throws InterruptedException
+    {
+        source.setFaultHandler(new Function<String, Single<Integer>>() {
+            int attemptCount = 0;
+
+            @Override
+            public Single<Integer> apply(final String s) throws Exception {
+                return Single.timer(10, TimeUnit.MILLISECONDS)
+                        .map(new Function<Long, Integer>() {
+
+                            @Override
+                            public Integer apply(Long aLong) throws Exception {
+                                ++attemptCount;
+
+                                return Integer.parseInt(s) * 10 + attemptCount;
+                            }
+                        });
+            }
+        });
+
+        TestSubscriber<Integer> testSubscriber10 = new TestSubscriber<>();
+        TestSubscriber<Integer> testSubscriber11 = new TestSubscriber<>();
+        TestSubscriber<Integer> testSubscriber12 = new TestSubscriber<>();
+        TestSubscriber<Integer> testSubscriber13 = new TestSubscriber<>();
+
+        subscribe(source.get("1"), testSubscriber10);
+        subscribe(source.get("1"), testSubscriber11);
+        subscribe(source.get("1"), testSubscriber12);
+
+        testSubscriber10.awaitCount(1);
+
+        testSubscriber11.dispose();
+        testSubscriber10.dispose();
+        testSubscriber12.dispose();
+
+        subscribe(source.get("1"), testSubscriber13);
+
+        testSubscriber13.awaitCount(1);
+
+        testSubscriber10.assertValues(11);
+        testSubscriber11.assertValues(11);
+        testSubscriber12.assertValues(11);
+        testSubscriber13.assertValues(12);
+    }
 }
