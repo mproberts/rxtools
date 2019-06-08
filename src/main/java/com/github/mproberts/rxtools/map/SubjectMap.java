@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -57,7 +58,7 @@ public class SubjectMap<K, V>
 
     private class OnSubscribeAttach implements FlowableOnSubscribe<V>
     {
-        private final AtomicBoolean _isFirstFault = new AtomicBoolean(true);
+        private final AtomicInteger _isFirstFault = new AtomicInteger(0);
         private final K _key;
         private volatile Processor<V, V> _valueObservable;
         private Function<K, Single<V>> _faultHandler;
@@ -71,10 +72,10 @@ public class SubjectMap<K, V>
         @Override
         public void subscribe(final FlowableEmitter<V> emitter) throws Exception
         {
-            boolean isFirst = _isFirstFault.getAndSet(false);
+            int isFirst = _isFirstFault.incrementAndGet();
             Completable attachedFetch = null;
 
-            if (isFirst) {
+            if (isFirst == 1) {
                 _valueObservable = attachSource(_key);
 
                 // since this is the first fetch of the observable, go grab the first emission
@@ -163,14 +164,19 @@ public class SubjectMap<K, V>
 
                 @Override
                 public void dispose() {
-                    Disposable disposable = initialValueFetchDisposable.get();
+                    int attachCount = _isFirstFault.decrementAndGet();
 
-                    if (disposable != null && !disposable.isDisposed()) {
-                        disposable.dispose();
+                    if (attachCount == 0) {
+                        Disposable disposable = initialValueFetchDisposable.get();
+
+                        if (disposable != null && !disposable.isDisposed()) {
+                            disposable.dispose();
+                        }
+
+                        detachSource(_key);
                     }
 
                     disposableTarget.get().cancel();
-                    detachSource(_key);
                 }
 
                 @Override
@@ -204,7 +210,11 @@ public class SubjectMap<K, V>
         try {
             // if our source is being attached, we expect that all existing sources have been
             // cleaned up properly. If not, this is a serious issue
-            assert(!_weakSources.containsKey(key));
+            if (_weakSources.containsKey(key)) {
+                WeakReference<Processor<V, V>> weakSource = _weakSources.get(key);
+
+                assert(weakSource != null);
+            }
 
             Processor<V, V> value = BehaviorProcessor.create();
 
