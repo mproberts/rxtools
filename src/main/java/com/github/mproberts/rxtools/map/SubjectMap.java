@@ -11,7 +11,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
@@ -58,7 +57,7 @@ public class SubjectMap<K, V>
 
     private class OnSubscribeAttach implements FlowableOnSubscribe<V>
     {
-        private final AtomicInteger _isFirstFault = new AtomicInteger(0);
+        private final AtomicInteger _attachmentCount = new AtomicInteger(0);
         private final K _key;
         private volatile Processor<V, V> _valueObservable;
         private Function<K, Single<V>> _faultHandler;
@@ -72,10 +71,10 @@ public class SubjectMap<K, V>
         @Override
         public void subscribe(final FlowableEmitter<V> emitter) throws Exception
         {
-            int isFirst = _isFirstFault.incrementAndGet();
+            int localAttachmentCount = _attachmentCount.incrementAndGet();
             Completable attachedFetch = null;
 
-            if (isFirst == 1) {
+            if (localAttachmentCount == 1) {
                 _valueObservable = attachSource(_key);
 
                 // since this is the first fetch of the observable, go grab the first emission
@@ -164,7 +163,7 @@ public class SubjectMap<K, V>
 
                 @Override
                 public void dispose() {
-                    int attachCount = _isFirstFault.decrementAndGet();
+                    int attachCount = _attachmentCount.decrementAndGet();
 
                     if (attachCount == 0) {
                         Disposable disposable = initialValueFetchDisposable.get();

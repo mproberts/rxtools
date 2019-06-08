@@ -266,7 +266,7 @@ public class SubjectMapTest
         s2.dispose();
         s3.dispose();
 
-        testSubscriber2.assertValues(3, 4);
+        testSubscriber2.assertValues(4);
     }
 
     @Test
