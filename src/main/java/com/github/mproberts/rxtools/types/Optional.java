@@ -48,6 +48,16 @@ public class Optional<T>
         }
     }
 
+    public <S> Optional<S> mapNullable(Function<T, S> map)
+    {
+        try {
+            return _value == null ? Optional.<S>empty() : Optional.ofNullable(map.apply(_value));
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public boolean isPresent()
     {
         return _value != null;
