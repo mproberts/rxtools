@@ -35,7 +35,7 @@ public class SimpleFlowableListTest {
         assertEquals(Arrays.asList(Change.removed(2)), testSubscriber.values().get(0).changes);
         assertEquals(Arrays.asList("str1", "str2", "str4", "str3"), testSubscriber.values().get(0).list);
 
-
+        // Remove again
         list.remove(new Predicate<String>() {
             @Override
             public boolean test(String s) {
@@ -46,6 +46,7 @@ public class SimpleFlowableListTest {
         assertEquals(Arrays.asList(Change.removed(3)), testSubscriber.values().get(1).changes);
         assertEquals(Arrays.asList("str1", "str2", "str4"), testSubscriber.values().get(1).list);
 
+        // Remove again again (no value this time)
         list.remove(new Predicate<String>() {
             @Override
             public boolean test(String s) {
