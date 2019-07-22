@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Predicate;
 
 /**
  * A basic FlowableList implementation which behaves much like a generic List. Additions, removals,
@@ -233,6 +234,28 @@ public class SimpleFlowableList<T> extends BaseFlowableList<T>
                 list.remove(index);
 
                 return new Update<>(list, Change.removed(index));
+            }
+        });
+    }
+
+    /**
+     * Finds and removes the first occurrence from the list that matches the provided predicate
+     * @param predicate The predicate indicating whether a value should be removed or not
+     */
+    public void remove(final Predicate<T> predicate)
+    {
+        applyOperation(new Function<List<T>, Update<T>>() {
+            @Override
+            public Update<T> apply(List<T> list)
+            {
+                for (int index = 0; index < list.size(); index++) {
+                    if (predicate.test(list.get(index))) {
+                        list.remove(index);
+                        return new Update<>(list, Change.removed(index));
+                    }
+                }
+
+                return null;
             }
         });
     }
